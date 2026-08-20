@@ -367,38 +367,23 @@ type CMSContextType = {
   loading: boolean;
 };
 
-const CMSContext = createContext<CMSContextType | undefined>(undefined);
+import { safeClearLegacyCMSCache } from "./utils";
 
-const STORAGE_KEY = "nri360_cms_data_v2";
+const CMSContext = createContext<CMSContextType | undefined>(undefined);
 
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Always initialize with DEFAULT_CMS so SSR and initial client render match exactly.
-  // localStorage + Firebase data is merged in useEffect (client-only), preventing hydration mismatch.
+  // Firebase data is fetched and merged in useEffect (client-only).
   const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Step 1: Instantly apply localStorage snapshot so UI feels instant on re-visit
-    const saved = safeGetItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setCms({
-          ...DEFAULT_CMS,
-          ...parsed,
-          about: { ...DEFAULT_CMS.about, ...(parsed.about || {}) },
-          hero: { ...DEFAULT_CMS.hero, ...(parsed.hero || {}) },
-          contactHero: { ...DEFAULT_CMS.contactHero, ...(parsed.contactHero || {}) },
-          contact: { ...DEFAULT_CMS.contact, ...(parsed.contact || {}) },
-        });
-      } catch (e) {
-        console.error("Failed to parse saved CMS data", e);
-      }
-    }
+    // Step 1: Safely purge oversized legacy localStorage keys to ensure browser storage quota is never exceeded
+    safeClearLegacyCMSCache();
 
-    // Step 2: Fetch latest data from Firebase and merge on top
+    // Step 2: Fetch latest data from Firebase RTDB (single source of truth)
     async function loadFromRTDB() {
-      if (!window.navigator.onLine) {
+      if (typeof window === "undefined" || !window.navigator.onLine) {
         setLoading(false);
         return;
       }
@@ -407,21 +392,17 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const snapshot = await get(cmsRef);
         if (snapshot.exists()) {
           const cloudData = snapshot.val() as Partial<CMSData>;
-          setCms((prev) => {
-            const merged = {
-              ...prev,
-              ...cloudData,
-              about: { ...prev.about, ...(cloudData.about || {}) },
-              hero: { ...prev.hero, ...(cloudData.hero || {}) },
-              contactHero: { ...prev.contactHero, ...(cloudData.contactHero || {}) },
-              contact: { ...DEFAULT_CMS.contact, ...(prev.contact || {}), ...(cloudData.contact || {}) },
-            };
-            safeSetItem(STORAGE_KEY, JSON.stringify(merged));
-            return merged;
-          });
+          setCms((prev) => ({
+            ...prev,
+            ...cloudData,
+            about: { ...prev.about, ...(cloudData.about || {}) },
+            hero: { ...prev.hero, ...(cloudData.hero || {}) },
+            contactHero: { ...prev.contactHero, ...(cloudData.contactHero || {}) },
+            contact: { ...DEFAULT_CMS.contact, ...(prev.contact || {}), ...(cloudData.contact || {}) },
+          }));
         }
       } catch (_err) {
-        // Graceful fallback — use localStorage data already applied above
+        console.warn("Could not fetch CMS data from Firebase RTDB:", _err);
       } finally {
         setLoading(false);
       }
@@ -431,9 +412,9 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveCmsState = (newData: CMSData) => {
     setCms(newData);
-    safeSetItem(STORAGE_KEY, JSON.stringify(newData));
+    // Directly persist updates to Firebase RTDB without writing heavy objects to localStorage
+    saveToCloud(newData);
   };
-
 
   const saveToCloud = async (overrideData?: CMSData): Promise<boolean> => {
     try {

@@ -9,22 +9,31 @@ const PINS = [
   { x: 84, y: 72 },
 ];
 
+function safeSessionGet(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(key);
+  } catch (_e) {
+    return null;
+  }
+}
+
 export function Preloader() {
   const [phase, setPhase] = useState(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("nri360_preloader_seen")) {
+    if (safeSessionGet("nri360_preloader_seen")) {
       return 3;
     }
     return 0;
   });
   const [done, setDone] = useState(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("nri360_preloader_seen")) {
+    if (safeSessionGet("nri360_preloader_seen")) {
       return true;
     }
     return false;
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("nri360_preloader_seen")) {
+    if (safeSessionGet("nri360_preloader_seen")) {
       setDone(true);
       return;
     }
