@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, PlayCircle, ShieldCheck, Zap, Globe2, BadgeCheck, Quote } from "lucide-react";
 import careImg from "@/assets/service-care.jpg";
@@ -90,8 +90,16 @@ function parseVideoUrl(url: string) {
 
 function YouTubePlayer({ videoId, opacity, blur }: { videoId: string; opacity: number; blur: number }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    // Delay heavy iframe creation slightly to let the main DOM tree render smoothly
+    const timer = setTimeout(() => setLoaded(true), 150);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
     const play = () => {
       if (iframeRef.current?.contentWindow) {
         try {
@@ -109,32 +117,33 @@ function YouTubePlayer({ videoId, opacity, blur }: { videoId: string; opacity: n
 
     const t1 = setTimeout(play, 300);
     const t2 = setTimeout(play, 1000);
-    const t3 = setTimeout(play, 2500);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
     };
-  }, [videoId]);
+  }, [videoId, loaded]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
   const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&muted=1&controls=0&loop=1&playlist=${videoId}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&enablejsapi=1&playsinline=1&origin=${encodeURIComponent(origin)}`;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <iframe
-        ref={iframeRef}
-        key={videoId}
-        className="absolute top-1/2 left-1/2 h-[56.25vw] min-h-[135%] w-[177.77vh] min-w-[135%] -translate-x-1/2 -translate-y-1/2 scale-[1.25] pointer-events-none border-0"
-        style={{
-          opacity,
-          filter: `blur(${blur}px)`,
-        }}
-        src={src}
-        title="NRI360 Video Background"
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-      />
+      {loaded && (
+        <iframe
+          ref={iframeRef}
+          key={videoId}
+          loading="lazy"
+          className="absolute top-1/2 left-1/2 h-[56.25vw] min-h-[135%] w-[177.77vh] min-w-[135%] -translate-x-1/2 -translate-y-1/2 scale-[1.25] pointer-events-none border-0"
+          style={{
+            opacity,
+            filter: `blur(${blur}px)`,
+          }}
+          src={src}
+          title="NRI360 Video Background"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        />
+      )}
     </div>
   );
 }

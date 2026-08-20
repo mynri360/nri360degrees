@@ -22,6 +22,8 @@ export function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+
+
   return (
     <header className={cn("fixed inset-x-0 top-0 z-50 transition-all duration-500", scrolled ? "py-2" : "py-4")}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -87,35 +89,25 @@ export function Nav() {
           </ul>
 
           <div className="flex items-center gap-2">
-            {!isInstalled ? (
+            {!isInstalled && (
               <button
                 type="button"
                 onClick={triggerInstall}
                 className={cn(
-                  "hidden items-center gap-2 rounded-full pl-2 pr-4 py-1.5 text-xs font-semibold transition-all duration-300 shadow-soft hover:-translate-y-0.5 hover:shadow-lift sm:inline-flex",
+                  "inline-flex items-center gap-2 rounded-full pl-2 pr-3.5 py-1.5 text-xs font-bold transition-all duration-300 shadow-soft hover:-translate-y-0.5 hover:shadow-lift active:scale-95 cursor-pointer",
                   scrolled
-                    ? "border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
-                    : "border border-white/30 bg-white/15 text-primary-foreground hover:bg-white/25 backdrop-blur-md",
+                    ? "gradient-royal text-primary-foreground"
+                    : "border border-white/40 bg-white/20 text-white hover:bg-white/30 backdrop-blur-md shadow-lg",
                 )}
               >
                 <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white p-0.5 shadow-sm">
                   <img src="/logo.png" alt="NRI360 Logo" className="h-full w-full rounded-full object-contain" />
                 </span>
                 <span>Download App</span>
-                <Download className="h-3.5 w-3.5 opacity-80" />
+                <Download className="h-3.5 w-3.5" />
               </button>
-            ) : (
-              <span
-                className={cn(
-                  "hidden items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 pl-2 pr-3.5 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 sm:inline-flex",
-                )}
-              >
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white p-0.5 shadow-sm">
-                  <img src="/logo.png" alt="NRI360 Logo" className="h-full w-full rounded-full object-contain" />
-                </span>
-                <span>NRI360 App</span>
-              </span>
             )}
+
             <Link
               to={header.ctaButtonHref as any}
               className="gradient-royal hidden rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-all duration-500 hover:-translate-y-0.5 hover:shadow-lift sm:inline-flex"
@@ -150,8 +142,8 @@ export function Nav() {
                 </Link>
               </li>
             ))}
-            <li>
-              {!isInstalled ? (
+            {!isInstalled && (
+              <li>
                 <button
                   type="button"
                   onClick={() => {
@@ -166,15 +158,9 @@ export function Nav() {
                   <span>Download App</span>
                   <Download className="h-4 w-4" />
                 </button>
-              ) : (
-                <div className="mt-1 flex items-center justify-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white p-0.5 shadow-sm">
-                    <img src="/logo.png" alt="NRI360 Logo" className="h-full w-full rounded-full object-contain" />
-                  </span>
-                  <span>NRI360 App Installed</span>
-                </div>
-              )}
-            </li>
+              </li>
+            )}
+
             <li>
               <Link
                 to={header.ctaButtonHref as any}

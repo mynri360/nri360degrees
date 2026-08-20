@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Mail, Phone, Instagram, Send, Download, Smartphone } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { COUNTRIES } from "@/lib/site-data";
 import { useCMS } from "@/lib/cms-context";
@@ -15,6 +15,8 @@ export function Footer() {
   const contact = cms.contact;
   const services = cms.services;
   const { isInstalled, triggerInstall } = usePWA();
+
+
 
   return (
     <footer className="relative overflow-hidden gradient-royal text-primary-foreground">
@@ -41,43 +43,29 @@ export function Footer() {
               ))}
             </div>
 
-            <div className="mt-7">
-              {!isInstalled ? (
+            {!isInstalled && (
+              <div className="mt-7">
                 <button
                   type="button"
                   onClick={triggerInstall}
-                  className="group relative inline-flex items-center gap-3 rounded-2xl border border-white/30 bg-white/15 px-4 py-3 text-left shadow-lift backdrop-blur-md transition-all duration-300 hover:border-white/50 hover:bg-white/25 hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="group relative inline-flex items-center gap-3 rounded-2xl border-2 border-white/40 bg-white/20 px-5 py-3.5 text-left shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-white hover:bg-white/30 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                 >
-                  <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white p-0.5 shadow-soft transition-transform duration-300 group-hover:scale-105">
+                  <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white p-0.5 shadow-soft transition-transform duration-300 group-hover:scale-110">
                     <img src="/logo.png" alt="NRI360 Logo" className="h-full w-full rounded-full object-contain" />
                   </span>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-medium tracking-wider uppercase text-primary-foreground/80">
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-white/90">
                       Get the Mobile App
                     </span>
-                    <span className="flex items-center gap-1.5 text-sm font-bold text-white">
+                    <span className="flex items-center gap-2 text-base font-extrabold text-white">
                       <span>Download App</span>
-                      <Download className="h-4 w-4 text-white transition-transform group-hover:translate-y-0.5" />
+                      <Download className="h-4.5 w-4.5 text-white transition-transform group-hover:translate-y-0.5" />
                     </span>
                   </div>
                 </button>
-              ) : (
-                <div className="inline-flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-emerald-500/20 px-4 py-3 text-left backdrop-blur-md">
-                  <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white p-0.5 shadow-soft">
-                    <img src="/logo.png" alt="NRI360 Logo" className="h-full w-full rounded-full object-contain" />
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-medium tracking-wider uppercase text-emerald-200">
-                      NRI360 PWA
-                    </span>
-                    <span className="flex items-center gap-1.5 text-sm font-bold text-white">
-                      <Smartphone className="h-4 w-4 text-emerald-300" />
-                      <span>App Installed</span>
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
+
           </div>
 
           <div>
@@ -90,8 +78,8 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
-              <li>
-                {!isInstalled ? (
+              {!isInstalled && (
+                <li>
                   <button
                     type="button"
                     onClick={triggerInstall}
@@ -100,18 +88,8 @@ export function Footer() {
                     <Download className="h-3.5 w-3.5 text-white/80" />
                     <span>Download App</span>
                   </button>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-white/80 font-medium">
-                    <Smartphone className="h-3.5 w-3.5 text-emerald-300" />
-                    <span>NRI360 App</span>
-                  </span>
-                )}
-              </li>
-              <li>
-                <Link to="/admin" className="transition-colors hover:text-white">
-                  Admin Portal ⚙️
-                </Link>
-              </li>
+                </li>
+              )}
             </ul>
             <h3 className="mt-8 text-sm font-semibold tracking-[0.2em] uppercase">Useful Links</h3>
             <ul className="mt-4 space-y-3 text-sm text-primary-foreground/80">

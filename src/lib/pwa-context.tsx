@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { safeGetItem, safeSetItem } from "./utils";
+
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -26,6 +28,10 @@ interface PWAContextType {
   isIOS: boolean;
   isAndroid: boolean;
   isDesktop: boolean;
+  showInstallModal: boolean;
+  setShowInstallModal: (show: boolean) => void;
+  closeInstallModal: () => void;
+  markAsInstalled: () => void;
   triggerInstall: () => Promise<void>;
   deferredPrompt: BeforeInstallPromptEvent | null;
 }
@@ -36,7 +42,12 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
     typeof window !== "undefined" ? window.__pwaDeferredPrompt || null : null
   );
+  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(
+    typeof window !== "undefined" ? window.__pwaDeferredPrompt || null : null
+  );
+
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
+  const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
   const [isIOS, setIsIOS] = useState<boolean>(false);
   const [isAndroid, setIsAndroid] = useState<boolean>(false);
   const [isDesktop, setIsDesktop] = useState<boolean>(false);
@@ -44,29 +55,39 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Detect platform
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const iosDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
-    const androidDevice = /android/.test(userAgent);
+    // Detect iOS
+    const ua = window.navigator.userAgent;
+    const iosDevice =
+      /iPhone|iPad|iPod/.test(ua) ||
+      (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+    const androidDevice = /android/i.test(ua);
     const desktopDevice = !iosDevice && !androidDevice;
 
     setIsIOS(iosDevice);
     setIsAndroid(androidDevice);
     setIsDesktop(desktopDevice);
 
-    // Detect standalone mode (already installed)
-    const isStandalone =
+    // Only mark as installed when actually running as a standalone PWA window
+    // Clear any stale localStorage flags that may cause false "already installed" state
+    const isStandaloneNow =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true ||
       document.referrer.includes("android-app://");
 
-    if (isStandalone) {
+    if (isStandaloneNow) {
       setIsInstalled(true);
+    } else {
+      // Clear stale flag — being in browser tab means the PWA is NOT installed/running standalone
+      localStorage.removeItem("pwa_installed");
     }
+
+
 
     const handleDisplayModeChange = (e: MediaQueryListEvent) => {
       if (e.matches) {
         setIsInstalled(true);
+        safeSetItem("pwa_installed", "true");
+        setShowInstallModal(false);
       }
     };
 
@@ -80,30 +101,32 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       e.preventDefault();
       const promptEvt = e as BeforeInstallPromptEvent;
       window.__pwaDeferredPrompt = promptEvt;
+      deferredPromptRef.current = promptEvt;
       setDeferredPrompt(promptEvt);
     };
 
     // Listener for appinstalled
     const handleAppInstalled = () => {
       setIsInstalled(true);
+      safeSetItem("pwa_installed", "true");
       setDeferredPrompt(null);
+      deferredPromptRef.current = null;
       window.__pwaDeferredPrompt = null;
-      toast.success("NRI360 App Installed!", {
-        description: "NRI360 has been added to your Home Screen.",
-      });
+      setShowInstallModal(false);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
     if (window.__pwaDeferredPrompt) {
+      deferredPromptRef.current = window.__pwaDeferredPrompt;
       setDeferredPrompt(window.__pwaDeferredPrompt);
     }
 
     // Register Service Worker
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register("/sw.js", { scope: "/" })
         .then((reg) => {
           console.log("NRI360 Service Worker registered cleanly with scope:", reg.scope);
         })
@@ -121,38 +144,43 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const markAsInstalled = () => {
+    // Don't persist to localStorage — isInstalled is derived from actual display-mode:standalone
+    setIsInstalled(true);
+    setShowInstallModal(false);
+    setDeferredPrompt(null);
+    deferredPromptRef.current = null;
+    if (typeof window !== "undefined") {
+      window.__pwaDeferredPrompt = null;
+    }
+  };
+
+  const closeInstallModal = () => {
+    setShowInstallModal(false);
+  };
+
   const triggerInstall = async () => {
-    const activePrompt = deferredPrompt || (typeof window !== "undefined" ? window.__pwaDeferredPrompt : null);
+    if (isInstalled) return;
+
+    // Directly fire Chrome/Android native "Install app" dialog overlay
+    const activePrompt =
+      deferredPromptRef.current ||
+      deferredPrompt ||
+      (typeof window !== "undefined" ? window.__pwaDeferredPrompt : null);
 
     if (activePrompt) {
       try {
         await activePrompt.prompt();
         const choice = await activePrompt.userChoice;
-        if (choice.outcome === "accepted") {
-          setIsInstalled(true);
-          setDeferredPrompt(null);
-          window.__pwaDeferredPrompt = null;
-          toast.success("NRI360 App Installed", {
-            description: "NRI360 is added to your Home Screen.",
-          });
+        if (choice && choice.outcome === "accepted") {
+          markAsInstalled();
         }
       } catch (err) {
-        console.error("Error triggering native PWA install prompt:", err);
+        console.error("Native PWA prompt invocation error:", err);
       }
-      return;
-    }
-
-    // Fallback info toast if browser native event is unavailable (e.g. iOS or manual browser menu install)
-    if (isIOS) {
-      toast.info("Install NRI360 App", {
-        description: "Tap Safari's Share icon, then select 'Add to Home Screen'.",
-      });
-    } else {
-      toast.info("Install NRI360 App", {
-        description: "Click the Install icon (⊕ or 📥) in your browser address bar or menu (⋮) to install.",
-      });
     }
   };
+
 
   const canInstall = !isInstalled;
 
@@ -164,6 +192,10 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         isIOS,
         isAndroid,
         isDesktop,
+        showInstallModal,
+        setShowInstallModal,
+        closeInstallModal,
+        markAsInstalled,
         triggerInstall,
         deferredPrompt: deferredPrompt || (typeof window !== "undefined" ? window.__pwaDeferredPrompt || null : null),
       }}
@@ -173,6 +205,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+
 export function usePWA() {
   const context = useContext(PWAContext);
   if (!context) {
@@ -180,6 +213,8 @@ export function usePWA() {
   }
   return context;
 }
+
+
 
 
 

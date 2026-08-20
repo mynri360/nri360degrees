@@ -10,11 +10,17 @@ const PRECACHE_ASSETS = [
   '/apple-touch-icon.png',
 ];
 
-// Install event: Pre-cache core app shell assets
+// Install event: Pre-cache core app shell assets safely
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
+      return Promise.allSettled(
+        PRECACHE_ASSETS.map((asset) =>
+          cache.add(asset).catch((err) => {
+            console.warn('SW Precache skipped asset:', asset, err);
+          })
+        )
+      );
     }).then(() => self.skipWaiting())
   );
 });

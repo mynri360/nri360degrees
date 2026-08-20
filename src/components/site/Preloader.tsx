@@ -10,15 +10,37 @@ const PINS = [
 ];
 
 export function Preloader() {
-  const [phase, setPhase] = useState(0);
-  const [done, setDone] = useState(false);
+  const [phase, setPhase] = useState(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("nri360_preloader_seen")) {
+      return 3;
+    }
+    return 0;
+  });
+  const [done, setDone] = useState(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("nri360_preloader_seen")) {
+      return true;
+    }
+    return false;
+  });
 
   useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("nri360_preloader_seen")) {
+      setDone(true);
+      return;
+    }
+
     const timers = [
-      setTimeout(() => setPhase(1), 500),
-      setTimeout(() => setPhase(2), 1100),
-      setTimeout(() => setPhase(3), 1700),
-      setTimeout(() => setDone(true), 2600),
+      setTimeout(() => setPhase(1), 120),
+      setTimeout(() => setPhase(2), 280),
+      setTimeout(() => setPhase(3), 440),
+      setTimeout(() => {
+        setDone(true);
+        if (typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem("nri360_preloader_seen", "true");
+          } catch (_e) {}
+        }
+      }, 620),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -31,16 +53,18 @@ export function Preloader() {
     };
   }, [done]);
 
+  if (done) return null;
+
   return (
     <div
       aria-hidden={done}
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center gradient-royal transition-all duration-700",
+        "fixed inset-0 z-[100] flex items-center justify-center gradient-royal transition-all duration-500",
         done && "pointer-events-none -translate-y-full opacity-0",
       )}
     >
       <div className="relative flex flex-col items-center">
-        <div className="relative h-40 w-40 flex items-center justify-center">
+        <div className="relative h-36 w-36 flex items-center justify-center sm:h-40 sm:w-40">
           <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full animate-spin-slow opacity-90">
             <circle cx="100" cy="100" r="78" fill="none" stroke="white" strokeOpacity="0.35" strokeWidth="1.2" />
             <ellipse cx="100" cy="100" rx="78" ry="30" fill="none" stroke="white" strokeOpacity="0.3" strokeWidth="1" />
@@ -50,11 +74,13 @@ export function Preloader() {
           </svg>
 
           {/* Logo badge in the center */}
-          <div className="relative z-10 h-24 w-24 overflow-hidden rounded-full border-2 border-white/20 bg-white p-1.5 shadow-lg animate-pulse-ring">
+          <div className="relative z-10 h-20 w-20 overflow-hidden rounded-full border-2 border-white/20 bg-white p-1.5 shadow-lg animate-pulse-ring sm:h-24 sm:w-24">
             <img 
               src="/logo.png" 
               alt="NRI360 Logo" 
               className="h-full w-full rounded-full object-contain"
+              loading="eager"
+              decoding="sync"
             />
           </div>
 
@@ -73,7 +99,7 @@ export function Preloader() {
                     strokeWidth="1"
                     strokeDasharray="220"
                     strokeDashoffset="220"
-                    style={{ animation: `dash 0.7s ${i * 0.12}s forwards ease-out` }}
+                    style={{ animation: `dash 0.4s ${i * 0.08}s forwards ease-out` }}
                   />
                 ),
               )}
@@ -84,19 +110,19 @@ export function Preloader() {
               <span
                 key={`p-${i}`}
                 className="animate-pin-pop absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.9)]"
-                style={{ left: `${p.x}%`, top: `${p.y}%`, animationDelay: `${i * 90}ms` }}
+                style={{ left: `${p.x}%`, top: `${p.y}%`, animationDelay: `${i * 60}ms` }}
               />
             ))}
         </div>
 
         <div
           className={cn(
-            "mt-8 text-center transition-all duration-700",
+            "mt-6 text-center transition-all duration-500 sm:mt-8",
             phase >= 3 ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0",
           )}
         >
-          <p className="font-display text-3xl font-semibold tracking-[0.18em] text-white">NRI360</p>
-          <p className="mt-2 text-xs tracking-[0.35em] text-white/70 uppercase">Connecting NRIs to India</p>
+          <p className="font-display text-2xl font-semibold tracking-[0.18em] text-white sm:text-3xl">NRI360</p>
+          <p className="mt-1 text-[11px] tracking-[0.35em] text-white/70 uppercase sm:mt-2 sm:text-xs">Connecting NRIs to India</p>
         </div>
       </div>
 

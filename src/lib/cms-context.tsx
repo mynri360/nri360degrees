@@ -18,6 +18,7 @@ import {
 import { ref, get, set } from "firebase/database";
 import { rtdb } from "./firebase";
 import { hashPassword, INITIAL_ADMIN_PASSWORD_HASH } from "./auth-security";
+import { safeGetItem, safeSetItem } from "./utils";
 
 export type HeaderData = {
   brandName: string;
@@ -378,7 +379,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     // Step 1: Instantly apply localStorage snapshot so UI feels instant on re-visit
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = safeGetItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -415,7 +416,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               contactHero: { ...prev.contactHero, ...(cloudData.contactHero || {}) },
               contact: { ...DEFAULT_CMS.contact, ...(prev.contact || {}), ...(cloudData.contact || {}) },
             };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            safeSetItem(STORAGE_KEY, JSON.stringify(merged));
             return merged;
           });
         }
@@ -430,10 +431,9 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveCmsState = (newData: CMSData) => {
     setCms(newData);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-    }
+    safeSetItem(STORAGE_KEY, JSON.stringify(newData));
   };
+
 
   const saveToCloud = async (overrideData?: CMSData): Promise<boolean> => {
     try {
