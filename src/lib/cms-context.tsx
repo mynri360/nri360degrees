@@ -381,7 +381,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Step 1: Safely purge oversized legacy localStorage keys to ensure browser storage quota is never exceeded
     safeClearLegacyCMSCache();
 
-    // Step 2: Fetch latest data from Firebase RTDB (single source of truth)
+    // Step 2: Fetch latest data from Firebase RTDB with a strict 2.5s timeout to prevent stalled loading
     async function loadFromRTDB() {
       if (typeof window === "undefined" || !window.navigator.onLine) {
         setLoading(false);
@@ -389,8 +389,11 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       try {
         const cmsRef = ref(rtdb, "settings/cms");
-        const snapshot = await get(cmsRef);
-        if (snapshot.exists()) {
+        const fetchPromise = get(cmsRef);
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
+        const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (snapshot && snapshot.exists()) {
           const cloudData = snapshot.val() as Partial<CMSData>;
           setCms((prev) => ({
             ...prev,

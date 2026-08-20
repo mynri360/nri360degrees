@@ -164,7 +164,7 @@ function RootComponent() {
     <CMSProvider>
       <PWAProvider>
         <QueryClientProvider client={queryClient}>
-          <Preloader />
+          {!isAdmin && <Preloader />}
           {!isAdmin && <ScrollProgress />}
           {!isAdmin && <CursorGlow />}
           {!isAdmin && <Nav />}
