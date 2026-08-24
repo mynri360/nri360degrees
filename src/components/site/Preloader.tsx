@@ -19,18 +19,10 @@ function safeSessionGet(key: string): string | null {
 }
 
 export function Preloader() {
-  const [phase, setPhase] = useState(() => {
-    if (safeSessionGet("nri360_preloader_seen")) {
-      return 3;
-    }
-    return 0;
-  });
-  const [done, setDone] = useState(() => {
-    if (safeSessionGet("nri360_preloader_seen")) {
-      return true;
-    }
-    return false;
-  });
+  // Always initialize to 0/false on both server and client to avoid SSR hydration mismatch.
+  // sessionStorage is not available during SSR, so we never read it in useState.
+  const [phase, setPhase] = useState(0);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (safeSessionGet("nri360_preloader_seen")) {

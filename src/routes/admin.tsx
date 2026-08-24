@@ -82,6 +82,79 @@ export const Route = createFileRoute("/admin")({
 
 type MainTabType = "home" | "services" | "about" | "contact" | "global";
 
+// Helper component for uploading/pasting image URLs
+function ImagePicker({
+  label,
+  value,
+  onChange,
+  previewClass = "h-28 rounded-xl object-cover w-full",
+}: {
+  label: string;
+  value: string;
+  onChange: (url: string) => void;
+  previewClass?: string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await uploadToCloudinary(file, "nri360_unsigned", "nri360/cms");
+      onChange(result.secureUrl);
+      toast.success("Image uploaded to Cloudinary! ✅");
+    } catch (_err) {
+      try {
+        const b64 = await toBase64(file);
+        onChange(b64);
+        toast.success("Image saved locally (base64).");
+      } catch {
+        toast.error("Failed to process image. Please paste a URL instead.");
+      }
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-muted-foreground">{label}</label>
+      {value && (
+        <img src={value} alt="preview" className={previewClass} onError={(e) => (e.currentTarget.style.display = "none")} />
+      )}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Paste any image URL (https://...) or click Upload ↓"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono"
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="shrink-0 rounded-lg border border-primary/50 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : "📂 Upload"}
+        </button>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
+
 function AdminPage() {
   const [passcode, setPasscode] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -141,79 +214,6 @@ function AdminPage() {
   // Editing state for Service modal
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isNewService, setIsNewService] = useState(false);
-
-  // Helper component for uploading/pasting image URLs
-  const ImagePicker = ({
-    label,
-    value,
-    onChange,
-    previewClass = "h-28 rounded-xl object-cover w-full",
-  }: {
-    label: string;
-    value: string;
-    onChange: (url: string) => void;
-    previewClass?: string;
-  }) => {
-    const fileRef = useRef<HTMLInputElement>(null);
-    const [uploading, setUploading] = useState(false);
-
-    const toBase64 = (file: File): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-    const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      setUploading(true);
-      try {
-        const result = await uploadToCloudinary(file, "nri360_unsigned", "nri360/cms");
-        onChange(result.secureUrl);
-        toast.success("Image uploaded to Cloudinary! ✅");
-      } catch (_err) {
-        try {
-          const b64 = await toBase64(file);
-          onChange(b64);
-          toast.success("Image saved locally (base64).");
-        } catch {
-          toast.error("Failed to process image. Please paste a URL instead.");
-        }
-      } finally {
-        setUploading(false);
-        if (fileRef.current) fileRef.current.value = "";
-      }
-    };
-
-    return (
-      <div className="space-y-2">
-        <label className="block text-xs font-medium text-muted-foreground">{label}</label>
-        {value && (
-          <img src={value} alt="preview" className={previewClass} onError={(e) => (e.currentTarget.style.display = "none")} />
-        )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Paste any image URL (https://...) or click Upload ↓"
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono"
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="shrink-0 rounded-lg border border-primary/50 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-50"
-          >
-            {uploading ? "Uploading…" : "📂 Upload"}
-          </button>
-        </div>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-      </div>
-    );
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
