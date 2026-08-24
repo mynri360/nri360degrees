@@ -42,10 +42,11 @@ function AboutPage() {
   const headerBgImg = about.headerImageUrl || careImg;
   const storyImg = about.storyImageUrl || careImg;
 
-  // Gallery: use CMS gallery if has items, else fallback to local assets
+  // Gallery: use CMS gallery if has valid items, else fallback to local assets
+  const activeGallery = (about.gallery || []).filter((g) => Boolean(g && g.trim()));
   const gallery: string[] =
-    about.gallery && about.gallery.length > 0
-      ? about.gallery
+    activeGallery.length > 0
+      ? activeGallery
       : [heroImg, careImg, realEstateImg, legalImg, careImg, realEstateImg];
 
   return (

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useCMS,
   type FaqItem,
@@ -82,12 +82,12 @@ export const Route = createFileRoute("/admin")({
 
 type MainTabType = "home" | "services" | "about" | "contact" | "global";
 
-// Helper component for uploading/pasting image URLs
+// Helper component for uploading/pasting image URLs with live preview, error handling & quick presets
 function ImagePicker({
   label,
   value,
   onChange,
-  previewClass = "h-28 rounded-xl object-cover w-full",
+  previewClass = "h-32 rounded-xl object-cover w-full",
 }: {
   label: string;
   value: string;
@@ -96,6 +96,12 @@ function ImagePicker({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  // Reset error state whenever value changes
+  useEffect(() => {
+    setLoadError(false);
+  }, [value]);
 
   const toBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -128,26 +134,70 @@ function ImagePicker({
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block text-xs font-medium text-muted-foreground">{label}</label>
-      {value && (
-        <img src={value} alt="preview" className={previewClass} onError={(e) => (e.currentTarget.style.display = "none")} />
-      )}
+    <div className="space-y-2.5 rounded-2xl border border-border/80 bg-card/60 p-4 shadow-xs">
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-bold text-foreground flex items-center gap-1.5">
+          <ImageIcon className="h-4 w-4 text-primary" /> {label}
+        </label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="text-[11px] font-semibold text-destructive hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" /> Remove Image
+          </button>
+        )}
+      </div>
+
+      {/* Live Image Preview Card */}
+      <div className="relative overflow-hidden rounded-xl border border-border bg-muted/40 min-h-[110px] flex items-center justify-center">
+        {value && !loadError ? (
+          <div className="relative w-full group">
+            <img
+              src={value}
+              alt="Live CMS Image Preview"
+              className={previewClass}
+              onError={() => setLoadError(true)}
+            />
+            <div className="absolute top-2 left-2 rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur border border-white/20 shadow-md">
+              ✓ Image Preview Live
+            </div>
+          </div>
+        ) : loadError ? (
+          <div className="p-4 text-center space-y-1">
+            <AlertTriangle className="mx-auto h-6 w-6 text-amber-500" />
+            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+              Unable to preview image from URL
+            </p>
+            <p className="text-[10px] text-muted-foreground">Check image link or click Upload below</p>
+          </div>
+        ) : (
+          <div className="p-5 text-center space-y-1 text-muted-foreground">
+            <ImageIcon className="mx-auto h-7 w-7 opacity-40" />
+            <p className="text-xs font-medium">No image configured</p>
+            <p className="text-[10px]">Paste an image URL below or click Upload to select a photo</p>
+          </div>
+        )}
+      </div>
+
+      {/* Input & Upload Controls */}
       <div className="flex gap-2">
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Paste any image URL (https://...) or click Upload ↓"
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono"
+          placeholder="Paste image URL (https://...) or base64 data..."
+          className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono focus:border-primary focus:outline-none"
         />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="shrink-0 rounded-lg border border-primary/50 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-50"
+          className="shrink-0 rounded-xl border border-primary/50 bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
         >
-          {uploading ? "Uploading…" : "📂 Upload"}
+          <CloudUpload className="h-4 w-4" />
+          {uploading ? "Uploading…" : "Upload File"}
         </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
@@ -634,6 +684,15 @@ function AdminPage() {
                       value={cms.hero.secondaryCtaHref}
                       onChange={(e) => updateHero({ secondaryCtaHref: e.target.value })}
                       className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 pt-4 border-t border-border">
+                    <ImagePicker
+                      label="Hero Background Image (Overlaid behind text when video is paused/disabled)"
+                      value={cms.hero.backgroundImageUrl || ""}
+                      onChange={(url) => updateHero({ backgroundImageUrl: url })}
+                      previewClass="h-32 rounded-xl object-cover w-full"
                     />
                   </div>
 
@@ -1497,8 +1556,18 @@ function AdminPage() {
                   {filteredServices.map((service) => (
                     <div
                       key={service.slug}
-                      className="rounded-xl border border-border bg-card p-4 space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow"
+                      className="rounded-xl border border-border bg-card p-4 space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow overflow-hidden"
                     >
+                      {service.imageUrl && (
+                        <div className="relative -mx-4 -mt-4 h-28 overflow-hidden bg-muted border-b border-border">
+                          <img
+                            src={service.imageUrl}
+                            alt={service.title}
+                            className="h-full w-full object-cover"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">

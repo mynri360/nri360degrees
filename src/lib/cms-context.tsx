@@ -400,6 +400,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...cloudData,
             about: { ...prev.about, ...(cloudData.about || {}) },
             hero: { ...prev.hero, ...(cloudData.hero || {}) },
+            servicesSection: { ...prev.servicesSection, ...(cloudData.servicesSection || {}) },
             contactHero: { ...prev.contactHero, ...(cloudData.contactHero || {}) },
             contact: { ...DEFAULT_CMS.contact, ...(prev.contact || {}), ...(cloudData.contact || {}) },
           }));

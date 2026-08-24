@@ -158,9 +158,19 @@ function Home() {
     <>
       {/* HERO */}
       <section className="relative flex min-h-[92svh] items-center overflow-hidden justify-center text-center text-white">
-        {/* Background Video Layer Only (z-0) */}
+        {/* Background Image / Video Layer Only (z-0) */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-slate-950">
-          {videoSource.type === "html5" ? (
+          {cms.hero.backgroundImageUrl ? (
+            <img
+              src={cms.hero.backgroundImageUrl}
+              alt="NRI360 Hero Background"
+              className="absolute top-1/2 left-1/2 h-full min-h-full w-full min-w-full -translate-x-1/2 -translate-y-1/2 object-cover pointer-events-none"
+              style={{
+                opacity,
+                filter: `blur(${blur}px)`,
+              }}
+            />
+          ) : videoSource.type === "html5" ? (
             <video
               key={videoSource.url}
               src={videoSource.url}

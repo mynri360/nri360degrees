@@ -68,13 +68,24 @@ export function SectionHeading({
 export function ServiceCard({ service, index = 0 }: { service: Service; index?: number }) {
   return (
     <Reveal delay={(index % 4) * 90}>
-      <article className="group card-lux hover-lift relative h-full overflow-hidden p-6">
+      <article className="group card-lux hover-lift relative h-full overflow-hidden p-6 flex flex-col justify-between">
         <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary-glow/20 blur-2xl transition-transform duration-700 group-hover:scale-150" />
+        {service.imageUrl && (
+          <div className="relative -mx-6 -mt-6 mb-4 h-36 overflow-hidden rounded-t-[1.5rem]">
+            <img
+              src={service.imageUrl}
+              alt={service.title}
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+          </div>
+        )}
         <div className="relative flex h-full flex-col">
           <span className="gradient-royal grid h-12 w-12 place-items-center rounded-xl text-primary-foreground shadow-soft transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110">
             <Icon name={service.icon} className="h-5 w-5" />
           </span>
-          <p className="mt-5 text-[11px] font-semibold tracking-[0.2em] text-primary/70 uppercase">
+          <p className="mt-4 text-[11px] font-semibold tracking-[0.2em] text-primary/70 uppercase">
             {service.category}
           </p>
           <h3 className="mt-2 text-xl font-semibold">{service.title}</h3>
