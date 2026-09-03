@@ -372,16 +372,12 @@ import { safeClearLegacyCMSCache } from "./utils";
 const CMSContext = createContext<CMSContextType | undefined>(undefined);
 
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Always initialize with DEFAULT_CMS so SSR and initial client render match exactly.
-  // Firebase data is fetched and merged in useEffect (client-only).
   const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Step 1: Safely purge oversized legacy localStorage keys
     safeClearLegacyCMSCache();
 
-    // Load locally cached CMS payload immediately (0ms instant render, prevents stale asset flash)
     const cachedCMS = safeGetItem("nri360_active_cms_cache");
     let initialLocal: Partial<CMSData> = {};
     if (cachedCMS) {
@@ -401,9 +397,8 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    // Step 2: Subscribe to Firebase RTDB with onValue for instant live push sync across all connected clients
     const cmsRef = ref(rtdb, "settings/cms");
-    const unsubscribe = onValue(
+    const unsubscribeCms = onValue(
       cmsRef,
       (snapshot) => {
         if (snapshot.exists()) {
@@ -423,8 +418,12 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             contact: { ...DEFAULT_CMS.contact, ...(cloudData.contact || {}) },
             services: cloudData.services && cloudData.services.length > 0 ? cloudData.services : DEFAULT_CMS.services,
           };
-          setCms(merged);
-          safeSetItem("nri360_active_cms_cache", JSON.stringify(merged));
+          setCms((prev) => ({
+            ...merged,
+            submissions: prev.submissions || [],
+          }));
+          const { submissions: _, ...cleanCache } = merged;
+          safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanCache));
         }
         setLoading(false);
       },
@@ -434,22 +433,43 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     );
 
-    return () => unsubscribe();
+    const subsRef = ref(rtdb, "submissions");
+    const unsubscribeSubs = onValue(
+      subsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const val = snapshot.val();
+          const subsList: ContactSubmission[] = Object.values(val);
+          subsList.sort((a, b) => (b.submittedAt > a.submittedAt ? 1 : -1));
+          setCms((prev) => ({ ...prev, submissions: subsList }));
+        } else {
+          setCms((prev) => ({ ...prev, submissions: [] }));
+        }
+      },
+      (_err) => {}
+    );
+
+    return () => {
+      unsubscribeCms();
+      unsubscribeSubs();
+    };
   }, []);
 
   const saveCmsState = (newData: CMSData) => {
+    const { submissions: _, ...cleanForCache } = newData;
     setCms(newData);
-    safeSetItem("nri360_active_cms_cache", JSON.stringify(newData));
+    safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanForCache));
     saveToCloud(newData);
   };
 
   const saveToCloud = async (overrideData?: CMSData): Promise<boolean> => {
     try {
       const dataToSave = overrideData || cms;
-      safeSetItem("nri360_active_cms_cache", JSON.stringify(dataToSave));
+      const { submissions: _, ...cleanCmsData } = dataToSave;
+      safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanCmsData));
       const cmsRef = ref(rtdb, "settings/cms");
       const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000));
-      const savePromise = set(cmsRef, dataToSave).then(() => true).catch(() => false);
+      const savePromise = set(cmsRef, cleanCmsData).then(() => true).catch(() => false);
       return await Promise.race([savePromise, timeoutPromise]);
     } catch (err) {
       console.error("Failed to save to Firebase RTDB:", err);
@@ -457,118 +477,130 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateCmsData = (updater: (prev: CMSData) => CMSData) => {
+    setCms((prev) => {
+      const next = updater(prev);
+      const { submissions: _, ...cleanForCache } = next;
+      safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanForCache));
+      saveToCloud(next);
+      return next;
+    });
+  };
+
   const updateHeader = (data: Partial<HeaderData>) => {
-    saveCmsState({ ...cms, header: { ...cms.header, ...data } });
+    updateCmsData((prev) => ({ ...prev, header: { ...prev.header, ...data } }));
   };
 
   const updateFooter = (data: Partial<FooterData>) => {
-    saveCmsState({ ...cms, footer: { ...cms.footer, ...data } });
+    updateCmsData((prev) => ({ ...prev, footer: { ...prev.footer, ...data } }));
   };
 
   const updateHero = (data: Partial<HeroData>) => {
-    const updatedHero = { ...cms.hero, ...data };
-    if (updatedHero.videoUrl && updatedHero.videoUrl.includes("lgYbOKV5zl4")) {
-      updatedHero.videoUrl = updatedHero.videoUrl.replace("lgYbOKV5zl4", "lgYbOKV5zI4");
-    }
-    saveCmsState({ ...cms, hero: updatedHero });
+    updateCmsData((prev) => {
+      const updatedHero = { ...prev.hero, ...data };
+      if (updatedHero.videoUrl && updatedHero.videoUrl.includes("lgYbOKV5zl4")) {
+        updatedHero.videoUrl = updatedHero.videoUrl.replace("lgYbOKV5zl4", "lgYbOKV5zI4");
+      }
+      return { ...prev, hero: updatedHero };
+    });
   };
 
   const updateAbout = (data: Partial<AboutData>) => {
-    saveCmsState({ ...cms, about: { ...cms.about, ...data } });
+    updateCmsData((prev) => ({ ...prev, about: { ...prev.about, ...data } }));
   };
 
   const updateServicesSection = (data: Partial<ServicesSectionData>) => {
-    saveCmsState({ ...cms, servicesSection: { ...cms.servicesSection, ...data } });
+    updateCmsData((prev) => ({ ...prev, servicesSection: { ...prev.servicesSection, ...data } }));
   };
 
   const updateContactHero = (data: Partial<ContactHeroData>) => {
-    saveCmsState({ ...cms, contactHero: { ...cms.contactHero, ...data } });
+    updateCmsData((prev) => ({ ...prev, contactHero: { ...prev.contactHero, ...data } }));
   };
 
   const updateProcessSection = (data: Partial<SectionMeta>) => {
-    saveCmsState({ ...cms, processSection: { ...cms.processSection, ...data } });
+    updateCmsData((prev) => ({ ...prev, processSection: { ...prev.processSection, ...data } }));
   };
 
   const updateWhyUsSection = (data: Partial<SectionMeta>) => {
-    saveCmsState({ ...cms, whyUsSection: { ...cms.whyUsSection, ...data } });
+    updateCmsData((prev) => ({ ...prev, whyUsSection: { ...prev.whyUsSection, ...data } }));
   };
 
   const updateMapSection = (data: Partial<SectionMeta>) => {
-    saveCmsState({ ...cms, mapSection: { ...cms.mapSection, ...data } });
+    updateCmsData((prev) => ({ ...prev, mapSection: { ...prev.mapSection, ...data } }));
   };
 
   const updateFaqSection = (data: Partial<SectionMeta>) => {
-    saveCmsState({ ...cms, faqSection: { ...cms.faqSection, ...data } });
+    updateCmsData((prev) => ({ ...prev, faqSection: { ...prev.faqSection, ...data } }));
   };
 
   const updateTestimonialsSection = (data: Partial<SectionMeta>) => {
-    saveCmsState({ ...cms, testimonialsSection: { ...cms.testimonialsSection, ...data } });
+    updateCmsData((prev) => ({ ...prev, testimonialsSection: { ...prev.testimonialsSection, ...data } }));
   };
 
   const updateCtaBand = (data: Partial<CtaBandData>) => {
-    saveCmsState({ ...cms, ctaBand: { ...cms.ctaBand, ...data } });
+    updateCmsData((prev) => ({ ...prev, ctaBand: { ...prev.ctaBand, ...data } }));
   };
 
   const updateContact = (data: Partial<ContactData>) => {
-    saveCmsState({ ...cms, contact: { ...cms.contact, ...data } });
+    updateCmsData((prev) => ({ ...prev, contact: { ...prev.contact, ...data } }));
   };
 
   const updateServices = (services: Service[]) => {
-    saveCmsState({ ...cms, services });
+    updateCmsData((prev) => ({ ...prev, services }));
   };
 
   const addService = (service: Service) => {
-    saveCmsState({ ...cms, services: [service, ...cms.services] });
+    updateCmsData((prev) => ({ ...prev, services: [service, ...prev.services] }));
   };
 
   const editService = (slug: string, updated: Partial<Service>) => {
-    const newServices = cms.services.map((s) => (s.slug === slug ? { ...s, ...updated } : s));
-    saveCmsState({ ...cms, services: newServices });
+    updateCmsData((prev) => ({
+      ...prev,
+      services: prev.services.map((s) => (s.slug === slug ? { ...s, ...updated } : s)),
+    }));
   };
 
   const deleteService = (slug: string) => {
-    const newServices = cms.services.filter((s) => s.slug !== slug);
-    saveCmsState({ ...cms, services: newServices });
+    updateCmsData((prev) => ({ ...prev, services: prev.services.filter((s) => s.slug !== slug) }));
   };
 
   const updateFaqs = (faqs: FaqItem[]) => {
-    saveCmsState({ ...cms, faqs });
+    updateCmsData((prev) => ({ ...prev, faqs }));
   };
 
   const updateTestimonials = (testimonials: TestimonialItem[]) => {
-    saveCmsState({ ...cms, testimonials });
+    updateCmsData((prev) => ({ ...prev, testimonials }));
   };
 
   const updateWhyUs = (items: WhyUsItem[]) => {
-    saveCmsState({ ...cms, whyUs: items });
+    updateCmsData((prev) => ({ ...prev, whyUs: items }));
   };
 
   const updateProcess = (items: ProcessItem[]) => {
-    saveCmsState({ ...cms, process: items });
+    updateCmsData((prev) => ({ ...prev, process: items }));
   };
 
   const updateStats = (items: StatItem[]) => {
-    saveCmsState({ ...cms, stats: items });
+    updateCmsData((prev) => ({ ...prev, stats: items }));
   };
 
   const updateInsights = (items: InsightItem[]) => {
-    saveCmsState({ ...cms, insights: items });
+    updateCmsData((prev) => ({ ...prev, insights: items }));
   };
 
   const updateHotspots = (hotspots: MapHotspot[]) => {
-    saveCmsState({ ...cms, hotspots });
+    updateCmsData((prev) => ({ ...prev, hotspots }));
   };
 
   const updateValuePillars = (valuePillars: ValuePillar[]) => {
-    saveCmsState({ ...cms, valuePillars });
+    updateCmsData((prev) => ({ ...prev, valuePillars }));
   };
 
   const updateAdminPassword = async (password: string): Promise<boolean> => {
     const passwordHash = await hashPassword(password.trim());
     safeSetItem("nri360_admin_password_hash", passwordHash);
-    const updated = { ...cms, adminPasswordHash: passwordHash };
-    setCms(updated);
-    return await saveToCloud(updated);
+    updateCmsData((prev) => ({ ...prev, adminPasswordHash: passwordHash }));
+    return true;
   };
 
   const addSubmission = async (
@@ -586,31 +618,24 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }),
       status: "New",
     };
-    const currentSubs = cms.submissions || [];
-    const updated = { ...cms, submissions: [newSubmission, ...currentSubs] };
-    saveCmsState(updated);
-    await saveToCloud(updated);
+    const subRef = ref(rtdb, `submissions/${newSubmission.id}`);
+    await set(subRef, newSubmission);
   };
 
   const updateSubmissionStatus = (id: string, status: "New" | "Read") => {
-    const currentSubs = cms.submissions || [];
-    const nextSubs = currentSubs.map((s) => (s.id === id ? { ...s, status } : s));
-    const updated = { ...cms, submissions: nextSubs };
-    saveCmsState(updated);
-    saveToCloud(updated);
+    const statusRef = ref(rtdb, `submissions/${id}/status`);
+    set(statusRef, status);
   };
 
   const deleteSubmission = (id: string) => {
-    const currentSubs = cms.submissions || [];
-    const nextSubs = currentSubs.filter((s) => s.id !== id);
-    const updated = { ...cms, submissions: nextSubs };
-    saveCmsState(updated);
-    saveToCloud(updated);
+    const subRef = ref(rtdb, `submissions/${id}`);
+    set(subRef, null);
   };
 
   const resetToDefaults = () => {
     safeRemoveItem("nri360_admin_password_hash");
-    saveCmsState(DEFAULT_CMS);
+    safeRemoveItem("nri360_active_cms_cache");
+    updateCmsData(() => DEFAULT_CMS);
   };
 
   return (
