@@ -371,26 +371,41 @@ import { safeClearLegacyCMSCache } from "./utils";
 
 const CMSContext = createContext<CMSContextType | undefined>(undefined);
 
+function getInitialCmsData(): CMSData {
+  if (typeof window === "undefined") {
+    return DEFAULT_CMS;
+  }
+  try {
+    const cachedCMS = safeGetItem("nri360_active_cms_cache");
+    const localHash = safeGetItem("nri360_admin_password_hash");
+    if (cachedCMS) {
+      const parsed = JSON.parse(cachedCMS) as Partial<CMSData>;
+      const activeHash = parsed.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
+      return {
+        ...DEFAULT_CMS,
+        ...parsed,
+        adminPasswordHash: activeHash,
+        about: { ...DEFAULT_CMS.about, ...(parsed.about || {}) },
+        hero: { ...DEFAULT_CMS.hero, ...(parsed.hero || {}) },
+        servicesSection: { ...DEFAULT_CMS.servicesSection, ...(parsed.servicesSection || {}) },
+        contactHero: { ...DEFAULT_CMS.contactHero, ...(parsed.contactHero || {}) },
+        contact: { ...DEFAULT_CMS.contact, ...(parsed.contact || {}) },
+        services: parsed.services && parsed.services.length > 0 ? parsed.services : DEFAULT_CMS.services,
+      };
+    }
+  } catch (_e) {}
+
+  return DEFAULT_CMS;
+}
+
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
+  const [cms, setCms] = useState<CMSData>(getInitialCmsData);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     safeClearLegacyCMSCache();
 
-    const cachedCMS = safeGetItem("nri360_active_cms_cache");
-    let initialLocal: Partial<CMSData> = {};
-    if (cachedCMS) {
-      try {
-        initialLocal = JSON.parse(cachedCMS) as Partial<CMSData>;
-        setCms((prev) => ({ ...prev, ...initialLocal }));
-      } catch (_err) {}
-    }
-
     const localHash = safeGetItem("nri360_admin_password_hash");
-    if (localHash) {
-      setCms((prev) => ({ ...prev, adminPasswordHash: localHash }));
-    }
 
     if (typeof window === "undefined") {
       setLoading(false);
