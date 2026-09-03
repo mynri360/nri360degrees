@@ -18,7 +18,7 @@ import {
 import { ref, get, set } from "firebase/database";
 import { rtdb } from "./firebase";
 import { hashPassword, INITIAL_ADMIN_PASSWORD_HASH } from "./auth-security";
-import { safeGetItem, safeSetItem } from "./utils";
+import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils";
 
 export type HeaderData = {
   brandName: string;
@@ -381,6 +381,12 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Step 1: Safely purge oversized legacy localStorage keys to ensure browser storage quota is never exceeded
     safeClearLegacyCMSCache();
 
+    // Load locally saved password hash fallback if available
+    const localHash = safeGetItem("nri360_admin_password_hash");
+    if (localHash) {
+      setCms((prev) => ({ ...prev, adminPasswordHash: localHash }));
+    }
+
     // Step 2: Fetch latest data from Firebase RTDB with a strict 2.5s timeout to prevent stalled loading
     async function loadFromRTDB() {
       if (typeof window === "undefined" || !window.navigator.onLine) {
@@ -395,9 +401,14 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (snapshot && snapshot.exists()) {
           const cloudData = snapshot.val() as Partial<CMSData>;
+          if (cloudData.adminPasswordHash) {
+            safeSetItem("nri360_admin_password_hash", cloudData.adminPasswordHash);
+          }
+          const activeHash = cloudData.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
           setCms((prev) => ({
             ...prev,
             ...cloudData,
+            adminPasswordHash: activeHash,
             about: { ...prev.about, ...(cloudData.about || {}) },
             hero: { ...prev.hero, ...(cloudData.hero || {}) },
             servicesSection: { ...prev.servicesSection, ...(cloudData.servicesSection || {}) },
@@ -540,9 +551,10 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAdminPassword = async (password: string): Promise<boolean> => {
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(password.trim());
+    safeSetItem("nri360_admin_password_hash", passwordHash);
     const updated = { ...cms, adminPasswordHash: passwordHash };
-    saveCmsState(updated);
+    setCms(updated);
     return await saveToCloud(updated);
   };
 
@@ -584,6 +596,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToDefaults = () => {
+    safeRemoveItem("nri360_admin_password_hash");
     saveCmsState(DEFAULT_CMS);
   };
 

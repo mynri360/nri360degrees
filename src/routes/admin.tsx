@@ -17,6 +17,7 @@ import { type Service, type MapHotspot } from "@/lib/site-data";
 import { Icon } from "@/components/site/Sections";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { hashPassword, INITIAL_ADMIN_PASSWORD_HASH } from "@/lib/auth-security";
+import { safeGetItem } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Lock,
@@ -267,8 +268,14 @@ function AdminPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const enteredHash = await hashPassword(passcode);
-    const storedHash = cms.adminPasswordHash || INITIAL_ADMIN_PASSWORD_HASH;
+    const cleanPass = passcode.trim();
+    if (!cleanPass) {
+      toast.error("Please enter admin password.");
+      return;
+    }
+    const enteredHash = await hashPassword(cleanPass);
+    const localHash = safeGetItem("nri360_admin_password_hash");
+    const storedHash = cms.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
     if (enteredHash === storedHash) {
       setIsAuthenticated(true);
       toast.success("Authenticated successfully as Admin");
@@ -279,38 +286,44 @@ function AdminPage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currentHash = await hashPassword(currentPass);
-    const storedHash = cms.adminPasswordHash || INITIAL_ADMIN_PASSWORD_HASH;
+    const cleanCurrent = currentPass.trim();
+    const cleanNew = newPass.trim();
+    const cleanConfirm = confirmPass.trim();
+
+    const currentHash = await hashPassword(cleanCurrent);
+    const localHash = safeGetItem("nri360_admin_password_hash");
+    const storedHash = cms.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
 
     if (currentHash !== storedHash) {
       toast.error("Current password is incorrect.");
       return;
     }
-    if (!newPass.trim()) {
+    if (!cleanNew) {
       toast.error("New password cannot be empty.");
       return;
     }
-    if (newPass.length < 4) {
+    if (cleanNew.length < 4) {
       toast.error("New password must be at least 4 characters long.");
       return;
     }
-    if (newPass === currentPass) {
+    if (cleanNew === cleanCurrent) {
       toast.error("New password should not be the same as the current password.");
       return;
     }
-    if (newPass !== confirmPass) {
+    if (cleanNew !== cleanConfirm) {
       toast.error("New passwords do not match.");
       return;
     }
     setChangingPass(true);
     try {
-      await updateAdminPassword(newPass);
+      await updateAdminPassword(cleanNew);
       toast.success("Password changed successfully!", {
         description: "Please log in again with your new password.",
       });
       setCurrentPass("");
       setNewPass("");
       setConfirmPass("");
+      setPasscode("");
       setIsAuthenticated(false);
     } catch (_err) {
       toast.error("Failed to update password. Please try again.");
