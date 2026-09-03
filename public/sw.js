@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nri360-pwa-v1';
+const CACHE_NAME = 'nri360-pwa-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -25,7 +25,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event: Clean up old caches
+// Activate event: Clean up old caches immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -45,7 +45,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Fetch event: Serve cached response or fetch from network
+// Fetch event: Direct network request for Firebase, Cloudinary, APIs, and Admin
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
@@ -55,8 +55,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Do NOT cache sensitive paths, admin routes, API endpoints, or auth
+  // Do NOT cache or intercept Firebase RTDB, Cloudinary assets, admin routes, API endpoints, or auth
   if (
+    url.hostname.includes('firebaseio.com') ||
+    url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('cloudinary.com') ||
     url.pathname.startsWith('/admin') ||
     url.pathname.startsWith('/api') ||
     url.pathname.includes('auth') ||
@@ -70,7 +73,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: Network-first with offline fallback to cached shell
+  // Navigation requests: Network-first with fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -95,28 +98,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (images, scripts, styles, fonts): Stale-While-Revalidate
+  // Static assets (styles, scripts, fonts): Network-first with cache fallback
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
-        .then((networkResponse) => {
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            networkResponse.type === 'basic'
-          ) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // Network failure silent catch for offline asset retrieval
-        });
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(request)
+      .then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === 'basic'
+        ) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(request);
+      })
   );
 });

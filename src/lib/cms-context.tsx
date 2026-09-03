@@ -15,7 +15,7 @@ import {
   type MapHotspot,
   type Service,
 } from "./site-data";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, onValue } from "firebase/database";
 import { rtdb } from "./firebase";
 import { hashPassword, INITIAL_ADMIN_PASSWORD_HASH } from "./auth-security";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils";
@@ -378,64 +378,77 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Step 1: Safely purge oversized legacy localStorage keys to ensure browser storage quota is never exceeded
+    // Step 1: Safely purge oversized legacy localStorage keys
     safeClearLegacyCMSCache();
 
-    // Load locally saved password hash fallback if available
+    // Load locally cached CMS payload immediately (0ms instant render, prevents stale asset flash)
+    const cachedCMS = safeGetItem("nri360_active_cms_cache");
+    let initialLocal: Partial<CMSData> = {};
+    if (cachedCMS) {
+      try {
+        initialLocal = JSON.parse(cachedCMS) as Partial<CMSData>;
+        setCms((prev) => ({ ...prev, ...initialLocal }));
+      } catch (_err) {}
+    }
+
     const localHash = safeGetItem("nri360_admin_password_hash");
     if (localHash) {
       setCms((prev) => ({ ...prev, adminPasswordHash: localHash }));
     }
 
-    // Step 2: Fetch latest data from Firebase RTDB with a strict 2.5s timeout to prevent stalled loading
-    async function loadFromRTDB() {
-      if (typeof window === "undefined" || !window.navigator.onLine) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const cmsRef = ref(rtdb, "settings/cms");
-        const fetchPromise = get(cmsRef);
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
-        const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
+    if (typeof window === "undefined") {
+      setLoading(false);
+      return;
+    }
 
-        if (snapshot && snapshot.exists()) {
+    // Step 2: Subscribe to Firebase RTDB with onValue for instant live push sync across all connected clients
+    const cmsRef = ref(rtdb, "settings/cms");
+    const unsubscribe = onValue(
+      cmsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
           const cloudData = snapshot.val() as Partial<CMSData>;
           if (cloudData.adminPasswordHash) {
             safeSetItem("nri360_admin_password_hash", cloudData.adminPasswordHash);
           }
           const activeHash = cloudData.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
-          setCms((prev) => ({
-            ...prev,
+          const merged: CMSData = {
+            ...DEFAULT_CMS,
             ...cloudData,
             adminPasswordHash: activeHash,
-            about: { ...prev.about, ...(cloudData.about || {}) },
-            hero: { ...prev.hero, ...(cloudData.hero || {}) },
-            servicesSection: { ...prev.servicesSection, ...(cloudData.servicesSection || {}) },
-            contactHero: { ...prev.contactHero, ...(cloudData.contactHero || {}) },
-            contact: { ...DEFAULT_CMS.contact, ...(prev.contact || {}), ...(cloudData.contact || {}) },
-          }));
+            about: { ...DEFAULT_CMS.about, ...(cloudData.about || {}) },
+            hero: { ...DEFAULT_CMS.hero, ...(cloudData.hero || {}) },
+            servicesSection: { ...DEFAULT_CMS.servicesSection, ...(cloudData.servicesSection || {}) },
+            contactHero: { ...DEFAULT_CMS.contactHero, ...(cloudData.contactHero || {}) },
+            contact: { ...DEFAULT_CMS.contact, ...(cloudData.contact || {}) },
+            services: cloudData.services && cloudData.services.length > 0 ? cloudData.services : DEFAULT_CMS.services,
+          };
+          setCms(merged);
+          safeSetItem("nri360_active_cms_cache", JSON.stringify(merged));
         }
-      } catch (_err) {
-        console.warn("Could not fetch CMS data from Firebase RTDB:", _err);
-      } finally {
+        setLoading(false);
+      },
+      (error) => {
+        console.warn("Could not fetch CMS data from Firebase RTDB:", error);
         setLoading(false);
       }
-    }
-    loadFromRTDB();
+    );
+
+    return () => unsubscribe();
   }, []);
 
   const saveCmsState = (newData: CMSData) => {
     setCms(newData);
-    // Directly persist updates to Firebase RTDB without writing heavy objects to localStorage
+    safeSetItem("nri360_active_cms_cache", JSON.stringify(newData));
     saveToCloud(newData);
   };
 
   const saveToCloud = async (overrideData?: CMSData): Promise<boolean> => {
     try {
       const dataToSave = overrideData || cms;
+      safeSetItem("nri360_active_cms_cache", JSON.stringify(dataToSave));
       const cmsRef = ref(rtdb, "settings/cms");
-      const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3500));
+      const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000));
       const savePromise = set(cmsRef, dataToSave).then(() => true).catch(() => false);
       return await Promise.race([savePromise, timeoutPromise]);
     } catch (err) {

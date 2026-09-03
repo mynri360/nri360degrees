@@ -63,7 +63,12 @@ export function safeClearLegacyCMSCache(): void {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith("nri360_cms_") || k === "nri360_cms_data_v2" || k === "nri360_cms_data")) {
+      if (
+        k &&
+        k !== "nri360_active_cms_cache" &&
+        k !== "nri360_admin_password_hash" &&
+        (k.startsWith("nri360_cms_") || k === "nri360_cms_data_v2" || k === "nri360_cms_data")
+      ) {
         keysToRemove.push(k);
       }
     }
