@@ -657,6 +657,15 @@ function FullPageCmsLoader() {
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3000);
+
+    return () => clearTimeout(splashTimer);
+  }, []);
 
   useEffect(() => {
     safeClearLegacyCMSCache();
@@ -969,7 +978,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loading,
       }}
     >
-      {children}
+      {showSplash ? <FullPageCmsLoader /> : children}
     </CMSContext.Provider>
   );
 };

@@ -478,7 +478,7 @@ function AdminPage() {
           { id: "services", label: `SERVICES PAGE ( /services )`, icon: Layers, badge: `${cms.services.length}` },
           { id: "about", label: "ABOUT PAGE ( /about )", icon: BookOpen },
           { id: "contact", label: "CONTACT PAGE ( /contact )", icon: PhoneCall },
-          { id: "privacy", label: "PRIVACY POLICY ( /privacy )", icon: ShieldCheck },
+          { id: "legal", label: "LEGAL PAGES ( Privacy & Terms )", icon: ShieldCheck },
           { id: "global", label: "GLOBAL SETTINGS", icon: Settings },
         ].map((tab) => {
           const IconComp = tab.icon;
