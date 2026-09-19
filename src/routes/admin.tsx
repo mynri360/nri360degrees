@@ -16,6 +16,9 @@ import {
 import { type Service, type MapHotspot } from "@/lib/site-data";
 import { Icon } from "@/components/site/Sections";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { storage } from "@/lib/firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { compressImage } from "@/lib/image-compressor";
 import { hashPassword, INITIAL_ADMIN_PASSWORD_HASH } from "@/lib/auth-security";
 import { safeGetItem } from "@/lib/utils";
 import { toast } from "sonner";
@@ -117,16 +120,27 @@ function ImagePicker({
     if (!file) return;
     setUploading(true);
     try {
+      // 1. Try Cloudinary
       const result = await uploadToCloudinary(file, "nri360_unsigned", "nri360/cms");
       onChange(result.secureUrl);
       toast.success("Image uploaded to Cloudinary! ✅");
     } catch (_err) {
       try {
-        const b64 = await toBase64(file);
-        onChange(b64);
-        toast.success("Image saved locally (base64).");
-      } catch {
-        toast.error("Failed to process image. Please paste a URL instead.");
+        // 2. Try Firebase Storage
+        const sRef = storageRef(storage, `cms/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`);
+        const snapshot = await uploadBytes(sRef, file);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        onChange(downloadUrl);
+        toast.success("Image uploaded to Firebase Storage! ✅");
+      } catch (_fbErr) {
+        try {
+          // 3. Optimized client-side JPEG compression (<40KB) for instant RTDB sync
+          const compressedDataUrl = await compressImage(file, 800, 600, 0.75);
+          onChange(compressedDataUrl);
+          toast.success("Image compressed and ready for live sync! ✅");
+        } catch {
+          toast.error("Failed to process image. Please paste an image URL instead.");
+        }
       }
     } finally {
       setUploading(false);

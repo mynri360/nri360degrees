@@ -371,39 +371,94 @@ import { safeClearLegacyCMSCache } from "./utils";
 
 const CMSContext = createContext<CMSContextType | undefined>(undefined);
 
-function getInitialCmsData(): CMSData {
-  if (typeof window === "undefined") {
-    return DEFAULT_CMS;
+function ensureArray<T>(val: any, fallback: T[] = []): T[] {
+  if (!val) return fallback;
+  if (Array.isArray(val)) return val.length > 0 ? val : fallback;
+  if (typeof val === "object") {
+    const values = Object.values(val) as T[];
+    return values.length > 0 ? values : fallback;
   }
-  try {
-    const cachedCMS = safeGetItem("nri360_active_cms_cache");
-    const localHash = safeGetItem("nri360_admin_password_hash");
-    if (cachedCMS) {
-      const parsed = JSON.parse(cachedCMS) as Partial<CMSData>;
-      const activeHash = parsed.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
-      return {
-        ...DEFAULT_CMS,
-        ...parsed,
-        adminPasswordHash: activeHash,
-        about: { ...DEFAULT_CMS.about, ...(parsed.about || {}) },
-        hero: { ...DEFAULT_CMS.hero, ...(parsed.hero || {}) },
-        servicesSection: { ...DEFAULT_CMS.servicesSection, ...(parsed.servicesSection || {}) },
-        contactHero: { ...DEFAULT_CMS.contactHero, ...(parsed.contactHero || {}) },
-        contact: { ...DEFAULT_CMS.contact, ...(parsed.contact || {}) },
-        services: parsed.services && parsed.services.length > 0 ? parsed.services : DEFAULT_CMS.services,
-      };
-    }
-  } catch (_e) {}
+  return fallback;
+}
 
-  return DEFAULT_CMS;
+function parseCloudCmsData(cloudData: Partial<CMSData>, localHash?: string | null): CMSData {
+  const activeHash = cloudData.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
+  const rawAbout: Partial<AboutData> = cloudData.about || {};
+  const rawHero: Partial<HeroData> = cloudData.hero || {};
+  const rawHeader: Partial<HeaderData> = cloudData.header || {};
+
+  return {
+    ...DEFAULT_CMS,
+    ...cloudData,
+    adminPasswordHash: activeHash,
+    header: {
+      ...DEFAULT_CMS.header,
+      ...rawHeader,
+      navLinks: ensureArray(rawHeader.navLinks, DEFAULT_CMS.header.navLinks),
+    },
+    hero: {
+      ...DEFAULT_CMS.hero,
+      ...rawHero,
+      trustBadges: ensureArray(rawHero.trustBadges, DEFAULT_CMS.hero.trustBadges),
+    },
+    about: {
+      ...DEFAULT_CMS.about,
+      ...rawAbout,
+      coreValues: ensureArray(rawAbout.coreValues, DEFAULT_CMS.about.coreValues),
+      team: ensureArray(rawAbout.team, DEFAULT_CMS.about.team),
+      milestones: ensureArray(rawAbout.milestones, DEFAULT_CMS.about.milestones),
+      gallery: ensureArray(rawAbout.gallery, DEFAULT_CMS.about.gallery),
+      achievements: ensureArray(rawAbout.achievements, DEFAULT_CMS.about.achievements),
+    },
+    servicesSection: { ...DEFAULT_CMS.servicesSection, ...(cloudData.servicesSection || {}) },
+    contactHero: { ...DEFAULT_CMS.contactHero, ...(cloudData.contactHero || {}) },
+    contact: { ...DEFAULT_CMS.contact, ...(cloudData.contact || {}) },
+
+    services: ensureArray(cloudData.services, DEFAULT_CMS.services),
+    faqs: ensureArray(cloudData.faqs, DEFAULT_CMS.faqs),
+    testimonials: ensureArray(cloudData.testimonials, DEFAULT_CMS.testimonials),
+    whyUs: ensureArray(cloudData.whyUs, DEFAULT_CMS.whyUs),
+    process: ensureArray(cloudData.process, DEFAULT_CMS.process),
+    stats: ensureArray(cloudData.stats, DEFAULT_CMS.stats),
+    insights: ensureArray(cloudData.insights, DEFAULT_CMS.insights),
+    hotspots: ensureArray(cloudData.hotspots, DEFAULT_CMS.hotspots),
+    valuePillars: ensureArray(cloudData.valuePillars, DEFAULT_CMS.valuePillars),
+  };
+}
+
+function FullPageCmsLoader() {
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950 text-white font-sans">
+      <div className="relative flex flex-col items-center p-6 text-center">
+        {/* Animated Brand Logo Glowing Ring */}
+        <div className="relative grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-tr from-primary via-indigo-600 to-amber-400 p-0.5 shadow-2xl shadow-primary/40 animate-pulse">
+          <div className="flex h-full w-full items-center justify-center rounded-[1.4rem] bg-slate-950">
+            <span className="font-display text-2xl font-bold tracking-tight text-white">NRI360</span>
+          </div>
+        </div>
+
+        {/* Loading Spinner & Live Status */}
+        <div className="mt-8 flex items-center gap-3">
+          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <span className="text-xs font-semibold tracking-[0.25em] text-primary uppercase">
+            Fetching Live Platform Data…
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-slate-400 max-w-sm">
+          Loading latest verified NRI360 configuration from Firebase RTDB
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cms, setCms] = useState<CMSData>(getInitialCmsData);
+  const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     safeClearLegacyCMSCache();
+    safeRemoveItem("nri360_active_cms_cache");
 
     const localHash = safeGetItem("nri360_admin_password_hash");
 
@@ -413,40 +468,44 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const cmsRef = ref(rtdb, "settings/cms");
+
+    const handleSnapshot = (snapshot: any) => {
+      if (snapshot && snapshot.exists()) {
+        const cloudData = snapshot.val() as Partial<CMSData>;
+        if (cloudData.adminPasswordHash) {
+          safeSetItem("nri360_admin_password_hash", cloudData.adminPasswordHash);
+        }
+        const merged = parseCloudCmsData(cloudData, localHash);
+        setCms((prev) => ({
+          ...merged,
+          submissions: prev.submissions || [],
+        }));
+      }
+      setLoading(false);
+    };
+
+    // 1. Instant direct get() to populate latest Firebase RTDB data before rendering
+    get(cmsRef)
+      .then(handleSnapshot)
+      .catch((err) => {
+        console.warn("Direct RTDB get() notice:", err);
+        setLoading(false);
+      });
+
+    // 2. Realtime subscription for live multi-tab & multi-user updates
     const unsubscribeCms = onValue(
       cmsRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const cloudData = snapshot.val() as Partial<CMSData>;
-          if (cloudData.adminPasswordHash) {
-            safeSetItem("nri360_admin_password_hash", cloudData.adminPasswordHash);
-          }
-          const activeHash = cloudData.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
-          const merged: CMSData = {
-            ...DEFAULT_CMS,
-            ...cloudData,
-            adminPasswordHash: activeHash,
-            about: { ...DEFAULT_CMS.about, ...(cloudData.about || {}) },
-            hero: { ...DEFAULT_CMS.hero, ...(cloudData.hero || {}) },
-            servicesSection: { ...DEFAULT_CMS.servicesSection, ...(cloudData.servicesSection || {}) },
-            contactHero: { ...DEFAULT_CMS.contactHero, ...(cloudData.contactHero || {}) },
-            contact: { ...DEFAULT_CMS.contact, ...(cloudData.contact || {}) },
-            services: cloudData.services && cloudData.services.length > 0 ? cloudData.services : DEFAULT_CMS.services,
-          };
-          setCms((prev) => ({
-            ...merged,
-            submissions: prev.submissions || [],
-          }));
-          const { submissions: _, ...cleanCache } = merged;
-          safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanCache));
-        }
-        setLoading(false);
-      },
+      handleSnapshot,
       (error) => {
-        console.warn("Could not fetch CMS data from Firebase RTDB:", error);
+        console.warn("Could not fetch CMS data from Firebase RTDB onValue:", error);
         setLoading(false);
       }
     );
+
+    // Timeout safety fallback so app never freezes permanently if network is offline
+    const fallbackTimer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
 
     const subsRef = ref(rtdb, "submissions");
     const unsubscribeSubs = onValue(
@@ -465,15 +524,14 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return () => {
+      clearTimeout(fallbackTimer);
       unsubscribeCms();
       unsubscribeSubs();
     };
   }, []);
 
   const saveCmsState = (newData: CMSData) => {
-    const { submissions: _, ...cleanForCache } = newData;
     setCms(newData);
-    safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanForCache));
     saveToCloud(newData);
   };
 
@@ -481,9 +539,8 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const dataToSave = overrideData || cms;
       const { submissions: _, ...cleanCmsData } = dataToSave;
-      safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanCmsData));
       const cmsRef = ref(rtdb, "settings/cms");
-      const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000));
+      const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 10000));
       const savePromise = set(cmsRef, cleanCmsData).then(() => true).catch(() => false);
       return await Promise.race([savePromise, timeoutPromise]);
     } catch (err) {
@@ -495,9 +552,9 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateCmsData = (updater: (prev: CMSData) => CMSData) => {
     setCms((prev) => {
       const next = updater(prev);
-      const { submissions: _, ...cleanForCache } = next;
-      safeSetItem("nri360_active_cms_cache", JSON.stringify(cleanForCache));
-      saveToCloud(next);
+      setTimeout(() => {
+        saveToCloud(next);
+      }, 0);
       return next;
     });
   };
@@ -691,7 +748,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loading,
       }}
     >
-      {children}
+      {loading ? <FullPageCmsLoader /> : children}
     </CMSContext.Provider>
   );
 };

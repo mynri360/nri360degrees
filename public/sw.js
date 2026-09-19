@@ -58,6 +58,7 @@ self.addEventListener('fetch', (event) => {
   // Do NOT cache or intercept Firebase RTDB, Cloudinary assets, admin routes, API endpoints, or auth
   if (
     url.hostname.includes('firebaseio.com') ||
+    url.hostname.includes('firebasedatabase.app') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('cloudinary.com') ||
     url.pathname.startsWith('/admin') ||

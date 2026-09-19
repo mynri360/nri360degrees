@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Clock, FileCheck2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import careImg from "@/assets/service-care.jpg";
 import realEstateImg from "@/assets/service-realestate.jpg";
 import legalImg from "@/assets/service-legal.jpg";
@@ -69,6 +69,13 @@ function ServicesPage() {
   const services = cms.services;
   const categories = Array.from(new Set(services.map((s) => s.category)));
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || "Family & Care");
+
+  useEffect(() => {
+    if (categories.length > 0 && !categories.includes(activeCategory)) {
+      setActiveCategory(categories[0] || "Family & Care");
+    }
+  }, [categories, activeCategory]);
+
   const activeItems = services.filter((s) => s.category === activeCategory);
 
   // Resolve service poster image: custom service imageUrl → category asset fallback
