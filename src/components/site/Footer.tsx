@@ -94,11 +94,15 @@ export function Footer() {
             <h3 className="mt-8 text-sm font-semibold tracking-[0.2em] uppercase">Useful Links</h3>
             <ul className="mt-4 space-y-3 text-sm text-primary-foreground/80">
               <li>
-                <Link to="/privacy" className="transition-colors hover:text-white">
+                <Link to="/privacy-policy" className="transition-colors hover:text-white">
                   Privacy Policy
                 </Link>
               </li>
-              <li>Terms of Service</li>
+              <li>
+                <Link to="/terms-and-conditions" className="transition-colors hover:text-white">
+                  Terms &amp; Conditions
+                </Link>
+              </li>
               <li>
                 <a
                   href={`https://instagram.com/${contact.instagram}`}

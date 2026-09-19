@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import {
   useCMS,
+  DEFAULT_LEGAL,
   type FaqItem,
   type TestimonialItem,
   type WhyUsItem,
@@ -12,8 +13,8 @@ import {
   type Milestone,
   type Achievement,
   type ContactSubmission,
-  type PrivacyPolicyData,
-  type PrivacyPolicySection,
+  type LegalPagesData,
+  type LegalPageContent,
 } from "@/lib/cms-context";
 import { type Service, type MapHotspot } from "@/lib/site-data";
 import { Icon } from "@/components/site/Sections";
@@ -61,6 +62,8 @@ import {
   Navigation,
   FileText,
   PhoneCall,
+  Scale,
+  ExternalLink,
 } from "lucide-react";
 
 function isValidGoogleMapsUrl(url: string): boolean {
@@ -86,7 +89,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type MainTabType = "home" | "services" | "about" | "contact" | "privacy" | "global";
+type MainTabType = "home" | "services" | "about" | "contact" | "privacy" | "global" | "legal";
 
 // Helper component for uploading/pasting image URLs with live preview, error handling & quick presets
 function ImagePicker({
@@ -211,152 +214,7 @@ function ImagePicker({
   );
 }
 
-function PrivacyPolicyEditor({
-  privacy,
-  onUpdate,
-}: {
-  privacy: PrivacyPolicyData;
-  onUpdate: (data: Partial<PrivacyPolicyData>) => void;
-}) {
-  const [data, setData] = useState<PrivacyPolicyData>(privacy);
 
-  useEffect(() => {
-    setData(privacy);
-  }, [privacy]);
-
-  const handleChange = (field: keyof PrivacyPolicyData, val: any) => {
-    const updated = { ...data, [field]: val };
-    setData(updated);
-    onUpdate({ [field]: val });
-  };
-
-  const handleSectionChange = (idx: number, field: "title" | "content", val: string) => {
-    const updatedSections = [...(data.sections || [])];
-    const current = updatedSections[idx] || { id: `sec-${idx + 1}`, title: "", content: "" };
-    updatedSections[idx] = {
-      id: current.id || `sec-${idx + 1}`,
-      title: current.title || "",
-      content: current.content || "",
-      [field]: val,
-    };
-    handleChange("sections", updatedSections);
-  };
-
-  const handleAddSection = () => {
-    const newSec: PrivacyPolicySection = {
-      id: `sec-${Date.now()}`,
-      title: `${(data.sections || []).length + 1}. New Policy Section`,
-      content: "Enter privacy policy section content here...",
-    };
-    handleChange("sections", [...(data.sections || []), newSec]);
-    toast.success("Added new Privacy Policy section");
-  };
-
-  const handleDeleteSection = (idx: number) => {
-    const updatedSections = (data.sections || []).filter((_, i) => i !== idx);
-    handleChange("sections", updatedSections);
-    toast.success("Deleted Privacy Policy section");
-  };
-
-  return (
-    <div className="space-y-6 mt-6">
-      <div className="card-lux p-6 space-y-4">
-        <div className="flex items-center gap-2 text-primary font-bold text-base border-b border-border pb-3">
-          <ShieldCheck className="h-5 w-5" /> Privacy Policy General Settings
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Page Title
-            </label>
-            <input
-              type="text"
-              value={data.title || "Privacy Policy"}
-              onChange={(e) => handleChange("title", e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Last Updated Tag
-            </label>
-            <input
-              type="text"
-              value={data.lastUpdated || "Last updated: March 2026"}
-              onChange={(e) => handleChange("lastUpdated", e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Page Subtitle / Legal Disclaimer Summary
-            </label>
-            <textarea
-              rows={2}
-              value={data.subtitle || ""}
-              onChange={(e) => handleChange("subtitle", e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-2">
-        <div>
-          <h3 className="text-lg font-bold text-foreground">Policy Sections (15 Sections)</h3>
-          <p className="text-xs text-muted-foreground">Manage and edit each clause and section content live</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleAddSection}
-          className="inline-flex items-center gap-1.5 rounded-xl gradient-royal px-4 py-2 text-xs font-bold text-primary-foreground shadow-soft hover:scale-105 transition-transform"
-        >
-          <Plus className="h-4 w-4" /> Add Section
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        {(data.sections || []).map((sec, idx) => (
-          <div key={sec.id || idx} className="card-lux p-5 space-y-3">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <span className="text-xs font-extrabold text-primary uppercase tracking-wider flex items-center gap-2">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-[10px]">
-                  {idx + 1}
-                </span>
-                Section {idx + 1}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleDeleteSection(idx)}
-                className="text-xs font-semibold text-destructive hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete Section
-              </button>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">Section Heading / Title</label>
-              <input
-                type="text"
-                value={sec.title}
-                onChange={(e) => handleSectionChange(idx, "title", e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold focus:border-primary focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">Section Content (Supports bullet points with •)</label>
-              <textarea
-                rows={5}
-                value={sec.content}
-                onChange={(e) => handleSectionChange(idx, "content", e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono leading-relaxed focus:border-primary focus:outline-none"
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function AdminPage() {
   const [passcode, setPasscode] = useState("");
@@ -397,7 +255,7 @@ function AdminPage() {
     updateTestimonialsSection,
     updateCtaBand,
     updateContact,
-    updatePrivacyPolicy,
+    updateLegalPages,
     updateServices,
     addService,
     deleteService,
@@ -2797,11 +2655,13 @@ function AdminPage() {
           </>
         )}
 
-        {/* PRIVACY POLICY MANAGEMENT PANEL */}
-        {activeTab === "privacy" && (
-          <PrivacyPolicyEditor
-            privacy={cms.privacyPolicy}
-            onUpdate={updatePrivacyPolicy}
+        {/* LEGAL PAGES TAB */}
+        {activeTab === "legal" && (
+          <LegalPagesEditor
+            legal={cms.legal || DEFAULT_LEGAL}
+            onSave={(updatedLegal) => {
+              updateLegalPages(updatedLegal);
+            }}
           />
         )}
       </div>
@@ -3090,6 +2950,285 @@ function AdminPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function LegalPagesEditor({
+  legal,
+  onSave,
+}: {
+  legal: LegalPagesData;
+  onSave: (updatedLegal: Partial<LegalPagesData>) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"privacy" | "terms">("privacy");
+  const [privacyState, setPrivacyState] = useState<LegalPageContent>(
+    legal.privacyPolicy || DEFAULT_LEGAL.privacyPolicy
+  );
+  const [termsState, setTermsState] = useState<LegalPageContent>(
+    legal.termsAndConditions || DEFAULT_LEGAL.termsAndConditions
+  );
+  const [viewMode, setViewMode] = useState<"edit" | "split" | "preview">("edit");
+
+  useEffect(() => {
+    if (legal.privacyPolicy) setPrivacyState(legal.privacyPolicy);
+    if (legal.termsAndConditions) setTermsState(legal.termsAndConditions);
+  }, [legal]);
+
+  const currentContent = activeTab === "privacy" ? privacyState : termsState;
+  const setCurrentContent = (updated: Partial<LegalPageContent>) => {
+    if (activeTab === "privacy") {
+      setPrivacyState((prev) => ({ ...prev, ...updated }));
+    } else {
+      setTermsState((prev) => ({ ...prev, ...updated }));
+    }
+  };
+
+  const insertTag = (openTag: string, closeTag: string) => {
+    const textarea = document.getElementById("legal-editor-textarea") as HTMLTextAreaElement | null;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    const replacement = `${openTag}${selectedText || "Sample Text"}${closeTag}`;
+    const newText = text.substring(0, start) + replacement + text.substring(end);
+    setCurrentContent({ content: newText });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + openTag.length, end + openTag.length + (selectedText ? 0 : 11));
+    }, 50);
+  };
+
+  const handleSaveActivePage = () => {
+    if (activeTab === "privacy") {
+      onSave({ privacyPolicy: privacyState });
+      toast.success("Privacy Policy saved to Firebase RTDB!");
+    } else {
+      onSave({ termsAndConditions: termsState });
+      toast.success("Terms & Conditions saved to Firebase RTDB!");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Top Header Card */}
+      <div className="card-lux p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+            <BookOpen className="h-5 w-5 text-primary" /> Legal Pages CMS Manager
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Edit and save Privacy Policy &amp; Terms &amp; Conditions independently. Changes save to Firebase RTDB and update live public pages.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={handleSaveActivePage}
+            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+          >
+            <Save className="h-4 w-4" />
+            {activeTab === "privacy" ? "Save Privacy Policy" : "Save Terms & Conditions"}
+          </button>
+        </div>
+      </div>
+
+      {/* Page Selector Sub-Tabs */}
+      <div className="flex items-center gap-2 border-b border-border pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("privacy")}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "privacy"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <BookOpen className="h-4 w-4" /> Privacy Policy
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("terms")}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "terms"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <BookOpen className="h-4 w-4" /> Terms &amp; Conditions
+        </button>
+      </div>
+
+      {/* Meta Settings Card */}
+      <div className="card-lux p-6 space-y-4">
+        <h3 className="text-sm font-bold text-foreground">
+          Page Title &amp; Effective Date
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Document Title</label>
+            <input
+              type="text"
+              value={currentContent.title}
+              onChange={(e) => setCurrentContent({ title: e.target.value })}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-bold text-foreground shadow-sm"
+              placeholder="e.g. Privacy Policy"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Last Updated / Effective Date</label>
+            <input
+              type="text"
+              value={currentContent.lastUpdated}
+              onChange={(e) => setCurrentContent({ lastUpdated: e.target.value })}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground shadow-sm"
+              placeholder="e.g. September 20, 2026"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Editor & Preview Toolbar Container */}
+      <div className="card-lux p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-4">
+          <h3 className="text-sm font-bold text-foreground">Content Editor (HTML / Formatting)</h3>
+          
+          {/* View Mode Switches */}
+          <div className="flex items-center gap-1 rounded-xl bg-muted p-1 border border-border">
+            <button
+              type="button"
+              onClick={() => setViewMode("edit")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "edit" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Editor Only
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("split")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "split" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Split View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("preview")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "preview" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Live Preview
+            </button>
+          </div>
+        </div>
+
+        {/* Quick HTML Insertion Toolbar */}
+        {viewMode !== "preview" && (
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/40 p-2 border border-border/60">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mr-1 px-1">Quick Formatting:</span>
+            <button
+              type="button"
+              onClick={() => insertTag("<h2>", "</h2>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-bold text-foreground hover:bg-accent"
+              title="Heading 2"
+            >
+              H2
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag("<h3>", "</h3>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-bold text-foreground hover:bg-accent"
+              title="Heading 3"
+            >
+              H3
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag("<p>", "</p>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-mono text-foreground hover:bg-accent"
+              title="Paragraph"
+            >
+              &lt;p&gt;
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag("<strong>", "</strong>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-extrabold text-foreground hover:bg-accent"
+              title="Bold"
+            >
+              B
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag("<em>", "</em>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs italic text-foreground hover:bg-accent"
+              title="Italic"
+            >
+              I
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag("<ul>\n  <li>", "</li>\n  <li>Second item</li>\n</ul>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-medium text-foreground hover:bg-accent"
+              title="Bullet List"
+            >
+              Bullet List
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag("<ol>\n  <li>", "</li>\n  <li>Second item</li>\n</ol>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-medium text-foreground hover:bg-accent"
+              title="Numbered List"
+            >
+              1. Numbered List
+            </button>
+            <button
+              type="button"
+              onClick={() => insertTag('<a href="mailto:mynri360@gmail.com">', "</a>")}
+              className="px-2.5 py-1 rounded-lg bg-background border border-border text-xs font-medium text-primary hover:bg-accent"
+              title="Insert Link"
+            >
+              🔗 Link
+            </button>
+          </div>
+        )}
+
+        {/* Main Content Layout (Editor / Split / Preview) */}
+        <div className={`grid gap-6 ${viewMode === "split" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
+          {viewMode !== "preview" && (
+            <div>
+              <textarea
+                id="legal-editor-textarea"
+                rows={18}
+                value={currentContent.content}
+                onChange={(e) => setCurrentContent({ content: e.target.value })}
+                className="w-full rounded-2xl border border-border bg-background p-4 font-mono text-xs sm:text-sm text-foreground leading-relaxed shadow-inner focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Enter document HTML content..."
+              />
+            </div>
+          )}
+
+          {viewMode !== "edit" && (
+            <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm overflow-y-auto max-h-[600px]">
+              <div className="mb-4 pb-3 border-b border-border flex items-center justify-between">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Live Document Preview</span>
+                <span className="text-[11px] text-muted-foreground">{currentContent.lastUpdated}</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">
+                {currentContent.title}
+              </h1>
+              <article
+                className="prose prose-slate dark:prose-invert max-w-none text-foreground/90 space-y-4 leading-relaxed text-xs sm:text-sm [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:border-b [&_h2]:border-border/50 [&_h2]:pb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: currentContent.content || "<p className='text-muted-foreground italic'>No content entered yet...</p>" }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
