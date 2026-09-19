@@ -120,28 +120,12 @@ function ImagePicker({
     if (!file) return;
     setUploading(true);
     try {
-      // 1. Try Cloudinary
-      const result = await uploadToCloudinary(file, "nri360_unsigned", "nri360/cms");
-      onChange(result.secureUrl);
-      toast.success("Image uploaded to Cloudinary! ✅");
-    } catch (_err) {
-      try {
-        // 2. Try Firebase Storage
-        const sRef = storageRef(storage, `cms/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`);
-        const snapshot = await uploadBytes(sRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-        onChange(downloadUrl);
-        toast.success("Image uploaded to Firebase Storage! ✅");
-      } catch (_fbErr) {
-        try {
-          // 3. Optimized client-side JPEG compression (<40KB) for instant RTDB sync
-          const compressedDataUrl = await compressImage(file, 800, 600, 0.75);
-          onChange(compressedDataUrl);
-          toast.success("Image compressed and ready for live sync! ✅");
-        } catch {
-          toast.error("Failed to process image. Please paste an image URL instead.");
-        }
-      }
+      // Process & compress file directly on client canvas (<40KB) for 100% CORS-free instant sync
+      const compressedDataUrl = await compressImage(file, 800, 600, 0.75);
+      onChange(compressedDataUrl);
+      toast.success("Image processed and ready for live sync! ✅");
+    } catch {
+      toast.error("Failed to process image. Please paste an image URL instead.");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
