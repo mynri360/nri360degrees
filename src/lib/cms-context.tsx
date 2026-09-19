@@ -151,6 +151,19 @@ export type ContactSubmission = {
   status: "New" | "Read";
 };
 
+export type PrivacyPolicySection = {
+  id: string;
+  title: string;
+  content: string;
+};
+
+export type PrivacyPolicyData = {
+  title: string;
+  subtitle: string;
+  lastUpdated: string;
+  sections: PrivacyPolicySection[];
+};
+
 export type CMSData = {
   header: HeaderData;
   footer: FooterData;
@@ -174,6 +187,7 @@ export type CMSData = {
   insights: InsightItem[];
   hotspots: MapHotspot[];
   valuePillars: ValuePillar[];
+  privacyPolicy: PrivacyPolicyData;
   adminPasswordHash?: string;
   submissions?: ContactSubmission[];
 };
@@ -304,6 +318,89 @@ const DEFAULT_CTA_BAND: CtaBandData = {
   secondaryCtaHref: "https://wa.me/919505163369",
 };
 
+export const DEFAULT_PRIVACY_POLICY: PrivacyPolicyData = {
+  title: "Privacy Policy",
+  subtitle: "Published in accordance with the Information Technology Act, 2000, IT Rules 2011, and reference to DPDP Act 2023 & DPDP Rules 2025.",
+  lastUpdated: "Last updated: March 2026",
+  sections: [
+    {
+      id: "sec-1",
+      title: "1. Introduction",
+      content: "This Privacy Policy describes how NRI360DEGREES (\"we\", \"us\", \"our\"), operating the website nri360degrees.com under the brand NRI360DEGREES, collects, uses, stores, shares, and protects your personal data when you use our website and services. We provide professional assistance services to Non-Resident Indians (NRIs), Overseas Citizens of India (OCI) cardholders, and Persons of Indian Origin, including real estate assistance, OCI application assistance, and documentation support. By using our website or services, you consent to the practices described in this Policy. This Policy is published in accordance with the Information Technology Act, 2000 and the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011, and has been prepared with reference to the Digital Personal Data Protection Act, 2023 and the Digital Personal Data Protection Rules, 2025."
+    },
+    {
+      id: "sec-2",
+      title: "2. Information We Collect",
+      content: "Depending on the service you engage, we may collect:\n• Identity information: full name, date of birth, place of birth, photographs, signature, nationality, and details of Indian origin.\n• Identity and travel documents: passport copies, OCI/PIO card copies, visa copies, PAN, and, only where a specific government process mandates it, Aadhaar or other government-issued identifiers.\n• Contact information: email address, phone/WhatsApp number, current overseas address, and Indian address.\n• Property and legal documents: title deeds, sale agreements, power of attorney, tax receipts, society/AMC records, and related papers, where you engage property services.\n• Financial information: bank account details required for a specific transaction or refund. We do NOT collect or store your card numbers, CVV, UPI PIN, or net-banking credentials; these are handled directly by our payment gateway.\n• Technical information: IP address, browser type, device information, and cookies, collected automatically when you browse the website."
+    },
+    {
+      id: "sec-3",
+      title: "3. Purpose of Collection",
+      content: "We use your data only to:\n• (a) provide the specific service you have engaged;\n• (b) prepare, verify, and submit applications and documents to the relevant authorities or counterparties on your instruction;\n• (c) communicate with you about your engagement;\n• (d) process payments and refunds;\n• (e) comply with legal, tax, and regulatory obligations;\n• (f) maintain records of engagements; and\n• (g) improve our website.\n\nWe do not use your data for purposes incompatible with these without fresh consent. In practice, this means the documents you share for one engagement are used only for that engagement, and we will ask you before reusing them for any new matter. We may use your contact details to send you service updates and reminders connected to your engagement, and, only if you have subscribed, occasional newsletters that you can opt out of at any time. We do not carry out automated profiling of clients, and we do not use client documents for marketing or training of any kind."
+    },
+    {
+      id: "sec-4",
+      title: "4. Consent",
+      content: "We collect and process personal data, including sensitive personal data such as passport and financial information, only with your consent, which you provide when you submit a form, upload documents, sign an engagement, or make a payment. You may withdraw consent at any time by writing to mynri360@gmail.com; withdrawal will not affect processing already completed, and may make it impossible for us to continue or complete the engaged service."
+    },
+    {
+      id: "sec-5",
+      title: "5. Sharing of Information",
+      content: "We never sell or rent your personal data. We share it only:\n• (a) with government authorities, ministries, missions, registries, and their authorised service providers, strictly as required to process your application or transaction on your instruction;\n• (b) with empanelled professionals such as advocates, chartered accountants, and title-search agents engaged for your matter;\n• (c) with courier and logistics partners for physical document movement;\n• (d) with our payment gateway partner Razorpay Software Private Limited for processing payments, subject to their own privacy policy;\n• (e) with our IT service providers under confidentiality obligations; and\n• (f) where required by law, court order, or government direction."
+    },
+    {
+      id: "sec-6",
+      title: "6. Payments",
+      content: "All online payments are processed by Razorpay, an RBI-regulated payment aggregator, over secure encrypted connections. We do not store your card or banking credentials on our servers."
+    },
+    {
+      id: "sec-7",
+      title: "7. International Users and Data Location",
+      content: "Our clients are primarily located outside India. By using our services from overseas, you understand that your data will be transferred to and processed in India, where our operations are based, and shared with Indian authorities as needed for your engagement."
+    },
+    {
+      id: "sec-8",
+      title: "8. Data Retention",
+      content: "We retain personal data only as long as needed for the purpose it was collected, to comply with legal and tax record-keeping obligations, and to establish or defend legal claims. Copies of engagement documents are retained for up to eight years in line with Indian record-keeping norms, after which they are securely deleted or destroyed. You may request earlier deletion of documents not required by law to be retained."
+    },
+    {
+      id: "sec-9",
+      title: "9. Security",
+      content: "We follow reasonable security practices and procedures as required under Section 43A of the Information Technology Act, 2000, including encrypted transmission (HTTPS), access controls, and restricted staff access to client documents. Client documents are stored in access-controlled systems and shared internally strictly on a need-to-know basis for your matter. Physical documents in our custody are kept in secure storage at our office and moved only through reputed courier partners with tracking. We review our security practices periodically and update them as technology and threats evolve. In the unlikely event of a data breach affecting your personal data, we will notify you and the relevant authorities as required by applicable law."
+    },
+    {
+      id: "sec-10",
+      title: "10. Your Rights",
+      content: "You may at any time:\n• (a) request access to the personal data we hold about you;\n• (b) request correction or updating of inaccurate data;\n• (c) request erasure of data no longer required by law;\n• (d) withdraw consent; and\n• (e) nominate another individual to exercise your rights in case of death or incapacity.\n\nWrite to info@servicesfornri.com to exercise any right; we will respond within 30 days."
+    },
+    {
+      id: "sec-11",
+      title: "11. Minors",
+      content: "Our services are contracted only by persons aged 18 or above. Where a service concerns a minor (for example, an OCI application for a child), we process the minor's data only on the documented instruction and consent of the parent or legal guardian."
+    },
+    {
+      id: "sec-12",
+      title: "12. Cookies",
+      content: "We use essential cookies and basic analytics cookies to run and improve the website. You can disable cookies in your browser; some features may not function correctly.\n\nFor analytics we use Google Analytics, which helps us understand how many people visit the website, which pages they find useful, and which countries and devices they visit from. This information is aggregated and statistical:\n• We do not use it to identify you personally.\n• Your IP address is anonymised before it is stored.\n• We do not sell or share this data with advertisers.\n\nYou can opt out of Google Analytics across all websites using the Google Analytics Opt-out Browser Add-on."
+    },
+    {
+      id: "sec-13",
+      title: "13. Grievance Officer",
+      content: "In accordance with the Information Technology Act, 2000, the rules made thereunder, and the Consumer Protection (E-Commerce) Rules, 2020, the Grievance Officer for this website is:\n\nThe Proprietor, NRI360DEGREES, 79-18-18/2, Primala Nilayam, Omkar Street, Gandhipuram, Rajahmundry, East Godavari, Andhra Pradesh, 533103, Email: mynri360@gmail.com. Phone: +91 95051 63369.\n\nGrievances will be acknowledged within 48 hours and resolved within 30 days of receipt."
+    },
+    {
+      id: "sec-14",
+      title: "14. Changes to this Policy",
+      content: "We may update this Policy from time to time. The \"Last updated\" date reflects the latest version. Continued use of the website after changes constitutes acceptance."
+    },
+    {
+      id: "sec-15",
+      title: "15. Governing Law",
+      content: "This Policy is governed by the laws of India, and courts at Vadodara, Gujarat shall have exclusive jurisdiction."
+    }
+  ]
+};
+
 const DEFAULT_CMS: CMSData = {
   header: DEFAULT_HEADER,
   footer: DEFAULT_FOOTER,
@@ -327,6 +424,7 @@ const DEFAULT_CMS: CMSData = {
   insights: DEFAULT_INSIGHTS,
   hotspots: DEFAULT_MAP_HOTSPOTS,
   valuePillars: DEFAULT_VALUE_PILLARS,
+  privacyPolicy: DEFAULT_PRIVACY_POLICY,
   adminPasswordHash: INITIAL_ADMIN_PASSWORD_HASH,
   submissions: [],
 };
@@ -346,6 +444,7 @@ type CMSContextType = {
   updateTestimonialsSection: (data: Partial<SectionMeta>) => void;
   updateCtaBand: (data: Partial<CtaBandData>) => void;
   updateContact: (data: Partial<ContactData>) => void;
+  updatePrivacyPolicy: (data: Partial<PrivacyPolicyData>) => void;
   updateServices: (services: Service[]) => void;
   addService: (service: Service) => void;
   editService: (slug: string, service: Partial<Service>) => void;
@@ -423,6 +522,14 @@ function parseCloudCmsData(cloudData: Partial<CMSData>, localHash?: string | nul
     insights: ensureArray(cloudData.insights, DEFAULT_CMS.insights),
     hotspots: ensureArray(cloudData.hotspots, DEFAULT_CMS.hotspots),
     valuePillars: ensureArray(cloudData.valuePillars, DEFAULT_CMS.valuePillars),
+    privacyPolicy: {
+      ...DEFAULT_CMS.privacyPolicy,
+      ...(cloudData.privacyPolicy || {}),
+      sections: ensureArray(
+        cloudData.privacyPolicy?.sections,
+        DEFAULT_CMS.privacyPolicy.sections
+      ),
+    },
   };
 }
 
@@ -617,6 +724,13 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateCmsData((prev) => ({ ...prev, contact: { ...prev.contact, ...data } }));
   };
 
+  const updatePrivacyPolicy = (data: Partial<PrivacyPolicyData>) => {
+    updateCmsData((prev) => ({
+      ...prev,
+      privacyPolicy: { ...prev.privacyPolicy, ...data },
+    }));
+  };
+
   const updateServices = (services: Service[]) => {
     updateCmsData((prev) => ({ ...prev, services }));
   };
@@ -727,6 +841,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTestimonialsSection,
         updateCtaBand,
         updateContact,
+        updatePrivacyPolicy,
         updateServices,
         addService,
         editService,

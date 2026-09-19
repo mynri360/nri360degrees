@@ -12,6 +12,8 @@ import {
   type Milestone,
   type Achievement,
   type ContactSubmission,
+  type PrivacyPolicyData,
+  type PrivacyPolicySection,
 } from "@/lib/cms-context";
 import { type Service, type MapHotspot } from "@/lib/site-data";
 import { Icon } from "@/components/site/Sections";
@@ -35,12 +37,6 @@ import {
   Layers,
   MessageSquareQuote,
   HelpCircle,
-  Award,
-  ShieldCheck,
-  Globe2,
-  Navigation,
-  FileText,
-  PhoneCall,
   BookOpen,
   Sparkles,
   MapPin,
@@ -59,6 +55,12 @@ import {
   KeyRound,
   Inbox,
   AlertTriangle,
+  Award,
+  ShieldCheck,
+  Globe2,
+  Navigation,
+  FileText,
+  PhoneCall,
 } from "lucide-react";
 
 function isValidGoogleMapsUrl(url: string): boolean {
@@ -84,7 +86,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type MainTabType = "home" | "services" | "about" | "contact" | "global";
+type MainTabType = "home" | "services" | "about" | "contact" | "privacy" | "global";
 
 // Helper component for uploading/pasting image URLs with live preview, error handling & quick presets
 function ImagePicker({
@@ -209,6 +211,153 @@ function ImagePicker({
   );
 }
 
+function PrivacyPolicyEditor({
+  privacy,
+  onUpdate,
+}: {
+  privacy: PrivacyPolicyData;
+  onUpdate: (data: Partial<PrivacyPolicyData>) => void;
+}) {
+  const [data, setData] = useState<PrivacyPolicyData>(privacy);
+
+  useEffect(() => {
+    setData(privacy);
+  }, [privacy]);
+
+  const handleChange = (field: keyof PrivacyPolicyData, val: any) => {
+    const updated = { ...data, [field]: val };
+    setData(updated);
+    onUpdate({ [field]: val });
+  };
+
+  const handleSectionChange = (idx: number, field: "title" | "content", val: string) => {
+    const updatedSections = [...(data.sections || [])];
+    const current = updatedSections[idx] || { id: `sec-${idx + 1}`, title: "", content: "" };
+    updatedSections[idx] = {
+      id: current.id || `sec-${idx + 1}`,
+      title: current.title || "",
+      content: current.content || "",
+      [field]: val,
+    };
+    handleChange("sections", updatedSections);
+  };
+
+  const handleAddSection = () => {
+    const newSec: PrivacyPolicySection = {
+      id: `sec-${Date.now()}`,
+      title: `${(data.sections || []).length + 1}. New Policy Section`,
+      content: "Enter privacy policy section content here...",
+    };
+    handleChange("sections", [...(data.sections || []), newSec]);
+    toast.success("Added new Privacy Policy section");
+  };
+
+  const handleDeleteSection = (idx: number) => {
+    const updatedSections = (data.sections || []).filter((_, i) => i !== idx);
+    handleChange("sections", updatedSections);
+    toast.success("Deleted Privacy Policy section");
+  };
+
+  return (
+    <div className="space-y-6 mt-6">
+      <div className="card-lux p-6 space-y-4">
+        <div className="flex items-center gap-2 text-primary font-bold text-base border-b border-border pb-3">
+          <ShieldCheck className="h-5 w-5" /> Privacy Policy General Settings
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Page Title
+            </label>
+            <input
+              type="text"
+              value={data.title || "Privacy Policy"}
+              onChange={(e) => handleChange("title", e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Last Updated Tag
+            </label>
+            <input
+              type="text"
+              value={data.lastUpdated || "Last updated: March 2026"}
+              onChange={(e) => handleChange("lastUpdated", e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Page Subtitle / Legal Disclaimer Summary
+            </label>
+            <textarea
+              rows={2}
+              value={data.subtitle || ""}
+              onChange={(e) => handleChange("subtitle", e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        <div>
+          <h3 className="text-lg font-bold text-foreground">Policy Sections (15 Sections)</h3>
+          <p className="text-xs text-muted-foreground">Manage and edit each clause and section content live</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleAddSection}
+          className="inline-flex items-center gap-1.5 rounded-xl gradient-royal px-4 py-2 text-xs font-bold text-primary-foreground shadow-soft hover:scale-105 transition-transform"
+        >
+          <Plus className="h-4 w-4" /> Add Section
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {(data.sections || []).map((sec, idx) => (
+          <div key={sec.id || idx} className="card-lux p-5 space-y-3">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <span className="text-xs font-extrabold text-primary uppercase tracking-wider flex items-center gap-2">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-[10px]">
+                  {idx + 1}
+                </span>
+                Section {idx + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleDeleteSection(idx)}
+                className="text-xs font-semibold text-destructive hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete Section
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">Section Heading / Title</label>
+              <input
+                type="text"
+                value={sec.title}
+                onChange={(e) => handleSectionChange(idx, "title", e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">Section Content (Supports bullet points with •)</label>
+              <textarea
+                rows={5}
+                value={sec.content}
+                onChange={(e) => handleSectionChange(idx, "content", e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono leading-relaxed focus:border-primary focus:outline-none"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AdminPage() {
   const [passcode, setPasscode] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -248,6 +397,7 @@ function AdminPage() {
     updateTestimonialsSection,
     updateCtaBand,
     updateContact,
+    updatePrivacyPolicy,
     updateServices,
     addService,
     deleteService,
@@ -470,6 +620,7 @@ function AdminPage() {
           { id: "services", label: `SERVICES PAGE ( /services )`, icon: Layers, badge: `${cms.services.length}` },
           { id: "about", label: "ABOUT PAGE ( /about )", icon: BookOpen },
           { id: "contact", label: "CONTACT PAGE ( /contact )", icon: PhoneCall },
+          { id: "privacy", label: "PRIVACY POLICY ( /privacy )", icon: ShieldCheck },
           { id: "global", label: "GLOBAL SETTINGS", icon: Settings },
         ].map((tab) => {
           const IconComp = tab.icon;
@@ -2644,6 +2795,14 @@ function AdminPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* PRIVACY POLICY MANAGEMENT PANEL */}
+        {activeTab === "privacy" && (
+          <PrivacyPolicyEditor
+            privacy={cms.privacyPolicy}
+            onUpdate={updatePrivacyPolicy}
+          />
         )}
       </div>
 

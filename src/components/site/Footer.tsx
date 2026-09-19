@@ -93,7 +93,11 @@ export function Footer() {
             </ul>
             <h3 className="mt-8 text-sm font-semibold tracking-[0.2em] uppercase">Useful Links</h3>
             <ul className="mt-4 space-y-3 text-sm text-primary-foreground/80">
-              <li>Privacy Policy</li>
+              <li>
+                <Link to="/privacy" className="transition-colors hover:text-white">
+                  Privacy Policy
+                </Link>
+              </li>
               <li>Terms of Service</li>
               <li>
                 <a
