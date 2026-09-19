@@ -92,31 +92,55 @@ export function getCloudinarySrcSet(
  */
 export async function uploadToCloudinary(
   file: File | Blob,
-  uploadPreset: string = "nri360_unsigned",
+  uploadPreset?: string,
   folder: string = "nri360"
 ): Promise<{ url: string; publicId: string; secureUrl: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-  formData.append("folder", folder);
+  const envPreset = import.meta.env["VITE_CLOUDINARY_UPLOAD_PRESET"];
+  
+  const presetsToTry: string[] = [
+    envPreset,
+    uploadPreset,
+    "nri360_unsigned",
+    "nri360_preset",
+    "nri360",
+    "ml_default"
+  ].filter((p): p is string => Boolean(p && p.trim()));
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`,
-    {
-      method: "POST",
-      body: formData,
+  const uniquePresets = Array.from(new Set(presetsToTry));
+  let lastError: Error | null = null;
+
+  for (const preset of uniquePresets) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", preset);
+      formData.append("folder", folder);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          url: data.url,
+          publicId: data.public_id,
+          secureUrl: data.secure_url || data.url,
+        };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        lastError = new Error(
+          errorData.error?.message || `Cloudinary upload failed for preset '${preset}' with status ${response.status}`
+        );
+      }
+    } catch (err: any) {
+      lastError = err;
     }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || "Failed to upload media to Cloudinary");
   }
 
-  const data = await response.json();
-  return {
-    url: data.url,
-    publicId: data.public_id,
-    secureUrl: data.secure_url,
-  };
+  throw lastError || new Error("Failed to upload media to Cloudinary");
 }

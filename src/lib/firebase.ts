@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, signInAnonymously } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getDatabase } from "firebase/database";
 
 // Your web app's Firebase configuration loaded from environment variables
@@ -21,3 +21,45 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const rtdb = getDatabase(app);
+
+export async function ensureAnonymousAuth() {
+  if (!auth.currentUser) {
+    try {
+      await signInAnonymously(auth);
+    } catch (err) {
+      console.warn("Firebase Anonymous Auth warning:", err);
+    }
+  }
+  return auth.currentUser;
+}
+
+export async function uploadToFirebaseStorage(
+  file: File | Blob,
+  folder: string = "cms"
+): Promise<string> {
+  await ensureAnonymousAuth();
+  const timestamp = Date.now();
+  const safeName = file instanceof File ? file.name.replace(/[^a-zA-Z0-9.-]/g, "_") : "upload.jpg";
+  const path = `${folder}/${timestamp}_${safeName}`;
+  const sRef = storageRef(storage, path);
+  const metadata = {
+    contentType: file.type || "image/jpeg",
+  };
+
+  const uploadTask = uploadBytesResumable(sRef, file, metadata);
+  return new Promise((resolve, reject) => {
+    uploadTask.on(
+      "state_changed",
+      null,
+      (error) => reject(error),
+      async () => {
+        try {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadUrl);
+        } catch (err) {
+          reject(err);
+        }
+      }
+    );
+  });
+}

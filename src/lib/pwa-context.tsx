@@ -14,14 +14,6 @@ declare global {
   }
 }
 
-// Immediately capture the native beforeinstallprompt event at window evaluation
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    window.__pwaDeferredPrompt = e as BeforeInstallPromptEvent;
-  });
-}
-
 interface PWAContextType {
   isInstalled: boolean;
   canInstall: boolean;

@@ -16,7 +16,7 @@ import {
 import { type Service, type MapHotspot } from "@/lib/site-data";
 import { Icon } from "@/components/site/Sections";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import { storage } from "@/lib/firebase";
+import { storage, uploadToFirebaseStorage } from "@/lib/firebase";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { compressImage } from "@/lib/image-compressor";
 import { hashPassword, INITIAL_ADMIN_PASSWORD_HASH } from "@/lib/auth-security";
@@ -120,10 +120,35 @@ function ImagePicker({
     if (!file) return;
     setUploading(true);
     try {
-      // Process & compress file directly on client canvas (<40KB) for 100% CORS-free instant sync
-      const compressedDataUrl = await compressImage(file, 800, 600, 0.75);
+      // 1. Try Cloudinary (Primary upload provider)
+      try {
+        const cloudRes = await uploadToCloudinary(file);
+        if (cloudRes && (cloudRes.secureUrl || cloudRes.url)) {
+          const imageUrl = cloudRes.secureUrl || cloudRes.url;
+          onChange(imageUrl);
+          toast.success("Image uploaded to Cloudinary! 🚀");
+          return;
+        }
+      } catch (cloudinaryErr: any) {
+        console.warn("Cloudinary primary upload failed, trying Firebase Storage fallback...", cloudinaryErr);
+      }
+
+      // 2. Try Firebase Storage (Fallback provider)
+      try {
+        const firebaseUrl = await uploadToFirebaseStorage(file, "cms");
+        if (firebaseUrl) {
+          onChange(firebaseUrl);
+          toast.success("Image uploaded to Firebase Storage! 📦");
+          return;
+        }
+      } catch (firebaseErr: any) {
+        console.warn("Firebase Storage upload failed, trying compressed fallback...", firebaseErr);
+      }
+
+      // 3. Client compressed canvas image fallback (Last resort)
+      const compressedDataUrl = await compressImage(file, 1000, 750, 0.75);
       onChange(compressedDataUrl);
-      toast.success("Image processed and ready for live sync! ✅");
+      toast.success("Image processed & ready for live sync! ⚡");
     } catch {
       toast.error("Failed to process image. Please paste an image URL instead.");
     } finally {
