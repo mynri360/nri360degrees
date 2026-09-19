@@ -242,6 +242,7 @@ function AdminPage() {
 
   const {
     cms,
+    adminPasswordHash,
     updateHeader,
     updateFooter,
     updateHero,
@@ -285,9 +286,8 @@ function AdminPage() {
       return;
     }
     const enteredHash = await hashPassword(cleanPass);
-    const localHash = safeGetItem("nri360_admin_password_hash");
-    const storedHash = cms.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
-    if (enteredHash === storedHash) {
+    const activePasswordHash = adminPasswordHash || cms.adminPasswordHash || safeGetItem("nri360_admin_password_hash") || INITIAL_ADMIN_PASSWORD_HASH;
+    if (enteredHash === activePasswordHash) {
       setIsAuthenticated(true);
       toast.success("Authenticated successfully as Admin");
     } else {
@@ -302,10 +302,9 @@ function AdminPage() {
     const cleanConfirm = confirmPass.trim();
 
     const currentHash = await hashPassword(cleanCurrent);
-    const localHash = safeGetItem("nri360_admin_password_hash");
-    const storedHash = cms.adminPasswordHash || localHash || INITIAL_ADMIN_PASSWORD_HASH;
+    const activePasswordHash = adminPasswordHash || cms.adminPasswordHash || safeGetItem("nri360_admin_password_hash") || INITIAL_ADMIN_PASSWORD_HASH;
 
-    if (currentHash !== storedHash) {
+    if (currentHash !== activePasswordHash) {
       toast.error("Current password is incorrect.");
       return;
     }
@@ -328,8 +327,8 @@ function AdminPage() {
     setChangingPass(true);
     try {
       await updateAdminPassword(cleanNew);
-      toast.success("Password changed successfully!", {
-        description: "Please log in again with your new password.",
+      toast.success("Password changed & updated permanently in Firebase RTDB!", {
+        description: "Old default password 1234 is now permanently disabled. Please log in with your new password.",
       });
       setCurrentPass("");
       setNewPass("");

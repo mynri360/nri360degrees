@@ -548,6 +548,7 @@ type CMSContextType = {
   updateHotspots: (hotspots: MapHotspot[]) => void;
   updateValuePillars: (pillars: ValuePillar[]) => void;
   updateLegalPages: (data: Partial<LegalPagesData>) => void;
+  adminPasswordHash: string;
   updateAdminPassword: (password: string) => Promise<boolean>;
   addSubmission: (submission: Omit<ContactSubmission, "id" | "submittedAt" | "status">) => Promise<void>;
   updateSubmissionStatus: (id: string, status: "New" | "Read") => void;
@@ -656,6 +657,9 @@ function FullPageCmsLoader() {
 
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
+  const [adminPasswordHash, setAdminPasswordHash] = useState<string>(
+    () => safeGetItem("nri360_admin_password_hash") || INITIAL_ADMIN_PASSWORD_HASH
+  );
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -665,6 +669,22 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 3000);
 
     return () => clearTimeout(splashTimer);
+  }, []);
+
+  // Dedicated listener for admin authentication password hash in Firebase RTDB
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const authRef = ref(rtdb, "settings/admin_auth/passwordHash");
+    const handleAuthSnapshot = (snapshot: any) => {
+      if (snapshot && snapshot.exists() && typeof snapshot.val() === "string" && snapshot.val().length > 0) {
+        const remoteHash = snapshot.val();
+        setAdminPasswordHash(remoteHash);
+        safeSetItem("nri360_admin_password_hash", remoteHash);
+      }
+    };
+    get(authRef).then(handleAuthSnapshot).catch(() => {});
+    const unsubscribeAuth = onValue(authRef, handleAuthSnapshot);
+    return () => unsubscribeAuth();
   }, []);
 
   useEffect(() => {
@@ -749,7 +769,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveToCloud = async (overrideData?: CMSData): Promise<boolean> => {
     try {
       const dataToSave = overrideData || cms;
-      const { submissions: _, ...cleanCmsData } = dataToSave;
+      const { submissions: _, adminPasswordHash: __, ...cleanCmsData } = dataToSave;
       const cmsRef = ref(rtdb, "settings/cms");
       const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 10000));
       const savePromise = set(cmsRef, cleanCmsData).then(() => true).catch(() => false);
@@ -898,9 +918,14 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAdminPassword = async (password: string): Promise<boolean> => {
-    const passwordHash = await hashPassword(password.trim());
+    const clean = password.trim();
+    if (!clean) return false;
+    const passwordHash = await hashPassword(clean);
+    const authRef = ref(rtdb, "settings/admin_auth/passwordHash");
+    await set(authRef, passwordHash);
+    setAdminPasswordHash(passwordHash);
     safeSetItem("nri360_admin_password_hash", passwordHash);
-    updateCmsData((prev) => ({ ...prev, adminPasswordHash: passwordHash }));
+    setCms((prev) => ({ ...prev, adminPasswordHash: passwordHash }));
     return true;
   };
 
@@ -934,7 +959,6 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToDefaults = () => {
-    safeRemoveItem("nri360_admin_password_hash");
     safeRemoveItem("nri360_active_cms_cache");
     updateCmsData(() => DEFAULT_CMS);
   };
@@ -943,6 +967,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <CMSContext.Provider
       value={{
         cms,
+        adminPasswordHash,
         updateHeader,
         updateFooter,
         updateHero,
