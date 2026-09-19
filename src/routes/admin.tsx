@@ -120,37 +120,17 @@ function ImagePicker({
     if (!file) return;
     setUploading(true);
     try {
-      // 1. Try Cloudinary (Primary upload provider)
-      try {
-        const cloudRes = await uploadToCloudinary(file);
-        if (cloudRes && (cloudRes.secureUrl || cloudRes.url)) {
-          const imageUrl = cloudRes.secureUrl || cloudRes.url;
-          onChange(imageUrl);
-          toast.success("Image uploaded to Cloudinary! 🚀");
-          return;
-        }
-      } catch (cloudinaryErr: any) {
-        console.warn("Cloudinary primary upload failed, trying Firebase Storage fallback...", cloudinaryErr);
+      const cloudRes = await uploadToCloudinary(file);
+      if (cloudRes && (cloudRes.secureUrl || cloudRes.url)) {
+        const imageUrl = cloudRes.secureUrl || cloudRes.url;
+        onChange(imageUrl);
+        toast.success("Image uploaded successfully to Cloudinary! 🚀");
+        return;
       }
-
-      // 2. Try Firebase Storage (Fallback provider)
-      try {
-        const firebaseUrl = await uploadToFirebaseStorage(file, "cms");
-        if (firebaseUrl) {
-          onChange(firebaseUrl);
-          toast.success("Image uploaded to Firebase Storage! 📦");
-          return;
-        }
-      } catch (firebaseErr: any) {
-        console.warn("Firebase Storage upload failed, trying compressed fallback...", firebaseErr);
-      }
-
-      // 3. Client compressed canvas image fallback (Last resort)
-      const compressedDataUrl = await compressImage(file, 1000, 750, 0.75);
-      onChange(compressedDataUrl);
-      toast.success("Image processed & ready for live sync! ⚡");
-    } catch {
-      toast.error("Failed to process image. Please paste an image URL instead.");
+      throw new Error("Cloudinary did not return a valid image URL.");
+    } catch (err: any) {
+      console.error("Cloudinary upload failed:", err);
+      toast.error(err.message || "Failed to upload image to Cloudinary. Please paste an image URL instead.");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";

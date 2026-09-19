@@ -7,6 +7,7 @@
 export const CLOUDINARY_CONFIG = {
   cloudName: import.meta.env["VITE_CLOUDINARY_CLOUD_NAME"] || "cjf0l3ew",
   apiKey: import.meta.env["VITE_CLOUDINARY_API_KEY"] || "515462529238595",
+  apiSecret: import.meta.env["VITE_CLOUDINARY_API_SECRET"] || import.meta.env["CLOUDINARY_API_SECRET"] || "j9bA2euw-fP8aX6_bf5DLg5Jpbk",
   baseUrl: `https://res.cloudinary.com/${import.meta.env["VITE_CLOUDINARY_CLOUD_NAME"] || "cjf0l3ew"}`,
 };
 
@@ -88,15 +89,59 @@ export function getCloudinarySrcSet(
 }
 
 /**
- * Client-side unsigned upload helper (requires an unsigned upload preset to be configured in Cloudinary dashboard)
+ * Computes SHA-1 hex hash for Cloudinary API signature generation in browser.
+ */
+async function sha1Hex(str: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Cloudinary primary upload provider supporting signed uploads (API key/secret) and unsigned presets.
  */
 export async function uploadToCloudinary(
   file: File | Blob,
   uploadPreset?: string,
   folder: string = "nri360"
 ): Promise<{ url: string; publicId: string; secureUrl: string }> {
+  // 1. Primary: Signed Upload using Cloudinary API credentials
+  try {
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const stringToSign = `folder=${folder}&timestamp=${timestamp}${CLOUDINARY_CONFIG.apiSecret}`;
+    const signature = await sha1Hex(stringToSign);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", CLOUDINARY_CONFIG.apiKey);
+    formData.append("timestamp", timestamp);
+    formData.append("folder", folder);
+    formData.append("signature", signature);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        url: data.url,
+        publicId: data.public_id,
+        secureUrl: data.secure_url || data.url,
+      };
+    }
+  } catch (signedErr) {
+    console.warn("Cloudinary signed upload attempt warning:", signedErr);
+  }
+
+  // 2. Secondary: Unsigned upload with candidate presets
   const envPreset = import.meta.env["VITE_CLOUDINARY_UPLOAD_PRESET"];
-  
   const presetsToTry: string[] = [
     envPreset,
     uploadPreset,
