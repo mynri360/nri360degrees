@@ -629,47 +629,12 @@ function parseCloudCmsData(cloudData: Partial<CMSData>, localHash?: string | nul
   };
 }
 
-function FullPageCmsLoader() {
-  return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950 text-white font-sans">
-      <div className="relative flex flex-col items-center p-6 text-center">
-        {/* Animated Brand Logo Glowing Ring */}
-        <div className="relative grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-tr from-primary via-indigo-600 to-amber-400 p-0.5 shadow-2xl shadow-primary/40 animate-pulse">
-          <div className="flex h-full w-full items-center justify-center rounded-[1.4rem] bg-slate-950">
-            <span className="font-display text-2xl font-bold tracking-tight text-white">NRI360</span>
-          </div>
-        </div>
-
-        {/* Loading Spinner & Live Status */}
-        <div className="mt-8 flex items-center gap-3">
-          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span className="text-xs font-semibold tracking-[0.25em] text-primary uppercase">
-            Fetching Live Platform Data…
-          </span>
-        </div>
-        <p className="mt-2 text-xs text-slate-400 max-w-sm">
-          Loading latest verified NRI360 configuration from Firebase RTDB
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cms, setCms] = useState<CMSData>(DEFAULT_CMS);
   const [adminPasswordHash, setAdminPasswordHash] = useState<string>(
     () => safeGetItem("nri360_admin_password_hash") || INITIAL_ADMIN_PASSWORD_HASH
   );
   const [loading, setLoading] = useState(true);
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const splashTimer = setTimeout(() => {
-      setShowSplash(false);
-    }, 3000);
-
-    return () => clearTimeout(splashTimer);
-  }, []);
 
   // Dedicated listener for admin authentication password hash in Firebase RTDB
   useEffect(() => {
@@ -1003,7 +968,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loading,
       }}
     >
-      {showSplash ? <FullPageCmsLoader /> : children}
+      {children}
     </CMSContext.Provider>
   );
 };

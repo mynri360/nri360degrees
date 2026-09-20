@@ -9,41 +9,36 @@ const PINS = [
   { x: 84, y: 72 },
 ];
 
-function safeSessionGet(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return sessionStorage.getItem(key);
-  } catch (_e) {
-    return null;
-  }
-}
-
 export function Preloader() {
-  // Always initialize to 0/false on both server and client to avoid SSR hydration mismatch.
-  // sessionStorage is not available during SSR, so we never read it in useState.
   const [phase, setPhase] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (safeSessionGet("nri360_preloader_seen")) {
-      setDone(true);
-      return;
-    }
+    // 5-second total loading time (5000ms)
+    const TOTAL_DURATION = 5000;
+    const startTime = Date.now();
 
-    const timers = [
-      setTimeout(() => setPhase(1), 120),
-      setTimeout(() => setPhase(2), 280),
-      setTimeout(() => setPhase(3), 440),
-      setTimeout(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const currentProgress = Math.min(100, Math.floor((elapsed / TOTAL_DURATION) * 100));
+      setProgress(currentProgress);
+
+      if (elapsed >= 1000 && elapsed < 2500) {
+        setPhase(1);
+      } else if (elapsed >= 2500 && elapsed < 3800) {
+        setPhase(2);
+      } else if (elapsed >= 3800) {
+        setPhase(3);
+      }
+
+      if (elapsed >= TOTAL_DURATION) {
+        clearInterval(interval);
         setDone(true);
-        if (typeof window !== "undefined") {
-          try {
-            sessionStorage.setItem("nri360_preloader_seen", "true");
-          } catch (_e) {}
-        }
-      }, 620),
-    ];
-    return () => timers.forEach(clearTimeout);
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -60,12 +55,13 @@ export function Preloader() {
     <div
       aria-hidden={done}
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center gradient-royal transition-all duration-500",
+        "fixed inset-0 z-[9999] flex flex-col items-center justify-center gradient-royal transition-all duration-700 ease-in-out",
         done && "pointer-events-none -translate-y-full opacity-0",
       )}
     >
       <div className="relative flex flex-col items-center">
-        <div className="relative h-36 w-36 flex items-center justify-center sm:h-40 sm:w-40">
+        {/* Animated Globe Orbit Lines & Pins */}
+        <div className="relative h-36 w-36 flex items-center justify-center sm:h-44 sm:w-44">
           <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full animate-spin-slow opacity-90">
             <circle cx="100" cy="100" r="78" fill="none" stroke="white" strokeOpacity="0.35" strokeWidth="1.2" />
             <ellipse cx="100" cy="100" rx="78" ry="30" fill="none" stroke="white" strokeOpacity="0.3" strokeWidth="1" />
@@ -75,7 +71,7 @@ export function Preloader() {
           </svg>
 
           {/* Logo badge in the center */}
-          <div className="relative z-10 h-20 w-20 overflow-hidden rounded-full border-2 border-white/20 bg-white p-1.5 shadow-lg animate-pulse-ring sm:h-24 sm:w-24">
+          <div className="relative z-10 h-20 w-20 overflow-hidden rounded-full border-2 border-white/30 bg-white p-1.5 shadow-2xl animate-pulse-ring sm:h-24 sm:w-24">
             <img 
               src="/logo.png" 
               alt="NRI360 Logo" 
@@ -100,7 +96,7 @@ export function Preloader() {
                     strokeWidth="1"
                     strokeDasharray="220"
                     strokeDashoffset="220"
-                    style={{ animation: `dash 0.4s ${i * 0.08}s forwards ease-out` }}
+                    style={{ animation: `dash 0.4s ${i * 0.12}s forwards ease-out` }}
                   />
                 ),
               )}
@@ -111,19 +107,33 @@ export function Preloader() {
               <span
                 key={`p-${i}`}
                 className="animate-pin-pop absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.9)]"
-                style={{ left: `${p.x}%`, top: `${p.y}%`, animationDelay: `${i * 60}ms` }}
+                style={{ left: `${p.x}%`, top: `${p.y}%`, animationDelay: `${i * 100}ms` }}
               />
             ))}
         </div>
 
-        <div
-          className={cn(
-            "mt-6 text-center transition-all duration-500 sm:mt-8",
-            phase >= 3 ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0",
-          )}
-        >
-          <p className="font-display text-2xl font-semibold tracking-[0.18em] text-white sm:text-3xl">NRI360</p>
-          <p className="mt-1 text-[11px] tracking-[0.35em] text-white/70 uppercase sm:mt-2 sm:text-xs">Connecting NRIs to India</p>
+        {/* Brand Text */}
+        <div className="mt-6 text-center transition-all duration-500 sm:mt-8">
+          <p className="font-display text-2xl font-bold tracking-[0.2em] text-white sm:text-3xl drop-shadow-md">
+            NRI360
+          </p>
+          <p className="mt-1 text-[11px] tracking-[0.35em] text-white/80 uppercase sm:mt-2 sm:text-xs font-medium">
+            Connecting NRIs to India
+          </p>
+        </div>
+
+        {/* Progress Bar & Percentage */}
+        <div className="mt-6 flex flex-col items-center gap-2 w-56 sm:w-64">
+          <div className="h-1.5 w-full rounded-full bg-white/20 overflow-hidden backdrop-blur-sm p-0.5">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-300 via-white to-amber-400 transition-all duration-75 ease-out shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between w-full text-[11px] font-semibold text-white/70 tracking-widest">
+            <span>{progress < 40 ? "INITIALIZING..." : progress < 85 ? "CONNECTING..." : "READY"}</span>
+            <span>{progress}%</span>
+          </div>
         </div>
       </div>
 
